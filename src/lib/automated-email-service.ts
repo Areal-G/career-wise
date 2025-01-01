@@ -69,32 +69,24 @@ async function sendEmailWithResend(
   subject: string,
   html: string
 ): Promise<{ success: boolean; messageId?: string }> {
-  console.log("[sendEmailWithResend] Attempting to send email to:", to);
-  
   if (!process.env.RESEND_API_KEY) {
     console.error("[sendEmailWithResend] Missing RESEND_API_KEY in .env file");
     return { success: false };
   }
 
-  try {
-    const { data, error } = await getResend().emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
-      to: [to],
-      subject: subject,
-      html: html,
-    });
+  const { data, error } = await getResend().emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
+    to: [to],
+    subject: subject,
+    html: html,
+  });
 
-    if (error) {
-      console.error("[sendEmailWithResend] Resend error:", error);
-      return { success: false };
-    }
-
-    console.log("[sendEmailWithResend] Email sent successfully! ID:", data?.id);
-    return { success: true, messageId: data?.id };
-  } catch (error) {
-    console.error("[sendEmailWithResend] Error sending email:", error);
+  if (error) {
+    console.error("[sendEmailWithResend] Resend error:", error);
     return { success: false };
   }
+
+  return { success: true, messageId: data?.id };
 }
 
 // Track first login and send welcome back email
@@ -103,7 +95,6 @@ export async function handleFirstLogin(
   userEmail: string,
   userName: string
 ): Promise<void> {
-  console.log("[handleFirstLogin] Called for user:", userEmail);
   try {
     const userRef = doc(db, "users", userId);
     const userDoc = await getDoc(userRef);
@@ -139,7 +130,6 @@ async function sendFirstLoginEmail(
   name: string,
   role: string
 ): Promise<void> {
-  console.log("[sendFirstLoginEmail] Sending to:", email);
   const welcomeBackContent = `
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">

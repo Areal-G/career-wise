@@ -10,7 +10,6 @@ import {
   Building2,
   Code,
   GraduationCap,
-  TrendingUp,
   Laptop,
   Database,
   Cloud,
@@ -19,7 +18,6 @@ import {
   BarChart,
   Shield,
   Users,
-  DollarSign,
 } from "lucide-react";
 
 // Expanded job search suggestions
@@ -279,13 +277,13 @@ const defaultSuggestions: Action[] = [
 export function SearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { role, loading } = useAuth();
+  const { loading } = useAuth();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
 
   useEffect(() => {
-    if (loading || role === "employer") return;
+    if (loading) return;
     setSearchTerm(searchParams.get("q") || "");
-  }, [searchParams, role, loading]);
+  }, [searchParams, loading]);
 
   const handleSearch = useCallback(() => {
     if (!searchTerm.trim()) return;
@@ -297,7 +295,7 @@ export function SearchBar() {
     router.push(`/opportunities?q=${action.label}`);
   };
 
-  if (loading || role === "employer") {
+  if (loading) {
     return null;
   }
 

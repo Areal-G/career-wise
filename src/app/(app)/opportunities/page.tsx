@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -22,6 +21,7 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  ArrowUpDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useSavedOpportunities } from "@/context/SavedOpportunitiesContext";
@@ -51,28 +51,6 @@ import {
 } from "@/components/ui/command";
 import { LumaSpin } from "@/components/ui/luma-spin";
 
-// Gradient backgrounds for avatars
-const AVATAR_GRADIENTS = [
-  'bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-500',
-  'bg-gradient-to-br from-violet-400 via-purple-500 to-fuchsia-500',
-  'bg-gradient-to-br from-pink-400 via-rose-400 to-red-400',
-  'bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500',
-  'bg-gradient-to-br from-amber-400 via-orange-400 to-red-400',
-  'bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-400',
-  'bg-gradient-to-br from-cyan-400 via-sky-400 to-blue-400',
-  'bg-gradient-to-br from-slate-500 via-gray-600 to-zinc-700',
-];
-
-// Get consistent gradient based on identifier
-const getGradient = (identifier: string) => {
-  if (!identifier) return AVATAR_GRADIENTS[0];
-  let hash = 0;
-  for (let i = 0; i < identifier.length; i++) {
-    hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
-};
-
 interface Opportunity {
   id: string;
   title: string;
@@ -81,7 +59,10 @@ interface Opportunity {
   type: string;
   skills: string[] | string;
   match?: number;
-  [key: string]: any;
+  description?: string;
+  experience?: string;
+  workMode?: string;
+  createdAt?: { toDate(): Date };
 }
 
 function OpportunitiesContent() {
@@ -96,6 +77,7 @@ function OpportunitiesContent() {
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [locationFilter, setLocationFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [sortBy, setSortBy] = useState<'newest' | 'relevance' | 'az' | 'za'>('newest');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -172,7 +154,7 @@ function OpportunitiesContent() {
     fetchOpportunities();
   }, []);
 
-  const calculateMatch = (opportunity: Opportunity) => {
+  const calculateMatch = useCallback((opportunity: Opportunity) => {
     if (!userProfile?.skills) return 0;
     const userSkills: Set<string> = new Set(
       (userProfile.skills || "")
@@ -194,7 +176,7 @@ function OpportunitiesContent() {
       requiredSkills.has(skill)
     );
     return Math.round((commonSkills.length / requiredSkills.size) * 100);
-  };
+  }, [userProfile]);
 
   // Helper function to check if a skill matches the search query
   const isSkillMatchingSearch = (skill: string, searchQuery: string) => {
@@ -270,8 +252,29 @@ function OpportunitiesContent() {
       });
     }
 
-    return filtered;
-  }, [searchParams, opportunities, locationFilter, typeFilter, selectedSkills]);
+    // Apply sorting
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case 'newest':
+        sorted.sort((a, b) => {
+          const dateA = a.createdAt?.toDate().getTime() ?? 0;
+          const dateB = b.createdAt?.toDate().getTime() ?? 0;
+          return dateB - dateA;
+        });
+        break;
+      case 'relevance':
+        sorted.sort((a, b) => calculateMatch(b) - calculateMatch(a));
+        break;
+      case 'az':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'za':
+        sorted.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+    }
+
+    return sorted;
+  }, [searchParams, opportunities, locationFilter, typeFilter, selectedSkills, sortBy, calculateMatch]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOpportunities.length / itemsPerPage);
@@ -419,7 +422,7 @@ function OpportunitiesContent() {
           {searchParams.get("q") && (
             <CardDescription className="flex items-center justify-between">
               <span>
-                Searching for "{searchParams.get("q")}" in job titles,
+                Searching for &quot;{searchParams.get("q")}&quot; in job titles,
                 companies, skills, locations, and descriptions.
                 {(filteredOpportunities.some((opp) => {
                   const skillsArray =
@@ -471,6 +474,18 @@ function OpportunitiesContent() {
                 <SelectItem className="rounded-full" value="Full-time">Full-time</SelectItem>
                 <SelectItem className="rounded-full" value="Part-time">Part-time</SelectItem>
                 <SelectItem className="rounded-full" value="Contract">Contract</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+              <SelectTrigger className="rounded-full">
+                <ArrowUpDown className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent className="rounded-3xl">
+                <SelectItem className="rounded-full" value="newest">Newest First</SelectItem>
+                <SelectItem className="rounded-full" value="relevance">Best Match</SelectItem>
+                <SelectItem className="rounded-full" value="az">A → Z</SelectItem>
+                <SelectItem className="rounded-full" value="za">Z → A</SelectItem>
               </SelectContent>
             </Select>
             <Popover>
@@ -558,8 +573,8 @@ function OpportunitiesContent() {
       {!loading && filteredOpportunities.length > 0 && (
         <div className="mb-4">
           <p className="text-sm text-muted-foreground">
-            {filteredOpportunities.length} opportunity
-            {filteredOpportunities.length !== 1 ? "ies" : "y"} found
+            {filteredOpportunities.length}{" "}
+            {filteredOpportunities.length === 1 ? "opportunity" : "opportunities"} found
             {searchParams.get("q") && ` for "${searchParams.get("q")}"`}
           </p>
         </div>
@@ -599,11 +614,6 @@ function OpportunitiesContent() {
               const createdDate = opp.createdAt?.toDate?.() 
                 ? new Date(opp.createdAt.toDate()).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
                 : 'Recently';
-              
-              // Parse skills for badges
-              const skillsArray = typeof opp.skills === "string"
-                ? opp.skills.split(",").slice(0, 2).map(s => s.trim())
-                : (opp.skills || []).slice(0, 2);
 
               return (
                 <div
@@ -611,11 +621,7 @@ function OpportunitiesContent() {
                   className="group grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 hover:bg-muted/30 transition-colors items-center"
                 >
                   {/* Job Title & Company */}
-                  <div className="md:col-span-4 flex items-center gap-3">
-                    <div className={cn(
-                      "w-10 h-10 rounded-full flex-shrink-0",
-                      getGradient(opp.id || opp.employerName)
-                    )} />
+                  <div className="md:col-span-4 flex items-center">
                     <div className="min-w-0">
                       <Link 
                         href={`/opportunities/${opp.id}`}

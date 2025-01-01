@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { Feed } from "@/components/ui/feed";
+import { EmployerToday } from "@/components/today/employer-today";
 
 export default function EmployerDashboardPage() {
   const { loading: authLoading } = useAuth();
@@ -16,15 +17,16 @@ export default function EmployerDashboardPage() {
   }
 
   return (
-    <div className="container mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Community Feed</h1>
-        <p className="text-muted-foreground">
-          Connect with candidates and share updates about your company.
-        </p>
-      </div>
+    <div className="container mx-auto space-y-10">
+      <EmployerToday />
 
-      <Feed />
+      <div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight">Company updates</h2>
+          <p className="text-muted-foreground">Share what your team is building. Posts show up for candidates.</p>
+        </div>
+        <Feed />
+      </div>
     </div>
   );
 }

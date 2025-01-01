@@ -29,14 +29,8 @@ export async function validateSession(): Promise<{
     // Force token refresh to ensure it's still valid
     await user.getIdToken(true);
     
-    // Check email verification if required
-    // Uncomment if you want to require email verification
-    // if (!user.emailVerified) {
-    //   return { valid: false, user, error: "Email not verified" };
-    // }
-    
     return { valid: true, user };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Session validation failed:", error);
     return { 
       valid: false, 

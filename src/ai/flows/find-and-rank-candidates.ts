@@ -9,9 +9,10 @@
  */
 
 import { ai } from "@/ai/genkit";
-import { sendApplicationStatusEmail } from "./send-application-status-email";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase-admin";
+import { requireServerRole } from "@/lib/server-auth";
+import { enforceAiRateLimit } from "@/lib/ai-rate-limit";
 
 // Helper to get Firestore collection reference using Admin SDK
 function getCollection(collectionName: string) {
@@ -61,12 +62,36 @@ export type FindAndRankCandidatesOutput = z.infer<
 export async function findAndRankCandidates(
   input: FindAndRankCandidatesInput
 ): Promise<FindAndRankCandidatesOutput> {
+  const user = await requireServerRole("employer");
+  if (user.uid !== input.employerId) {
+    throw new Error("Forbidden");
+  }
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: "genkit",
+  });
   return findAndRankCandidatesFlow(input);
 }
 
+const CandidateProfileSchema = z.object({
+  uid: z.string(),
+  displayName: z.string(),
+  email: z.string(),
+  photoURL: z.string().optional(),
+  skills: z.string(),
+  experience: z.string(),
+  careerGoals: z.string(),
+});
+
+const RankCandidatesPromptInputSchema = z.object({
+  requiredSkills: z.string(),
+  candidates: z.array(CandidateProfileSchema),
+});
+
 const rankCandidatesPrompt = ai.definePrompt({
   name: "rankCandidatesPrompt",
-  input: { schema: z.any() },
+  input: { schema: RankCandidatesPromptInputSchema },
   output: { schema: FindAndRankCandidatesOutputSchema },
   prompt: `You are an expert HR recruiter. Your task is to analyze a list of potential candidates and rank them based on their suitability for an employer's needs.
 
@@ -164,15 +189,7 @@ const findAndRankCandidatesFlow = ai.defineFlow(
       .where("role", "==", "employee")
       .get();
 
-    interface EmployeeData {
-      uid: string;
-      displayName: string;
-      email: string;
-      photoURL?: string;
-      skills: string;
-      experience: string;
-      careerGoals: string;
-    }
+    type EmployeeData = z.infer<typeof CandidateProfileSchema>;
 
     const allEmployees: EmployeeData[] = usersSnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -205,14 +222,13 @@ const findAndRankCandidatesFlow = ai.defineFlow(
     ];
 
     // Remove duplicates by UID (in case of overlap)
-    const uniqueEmployeesMap = new Map();
+    const uniqueEmployeesMap = new Map<string, EmployeeData>();
     combinedEmployees.forEach((emp) => {
       uniqueEmployeesMap.set(emp.uid, emp);
     });
 
     const uniqueEmployees = Array.from(uniqueEmployeesMap.values());
 
-    // Debug output: log all employees being considered and required skills
     if (uniqueEmployees.length === 0) {
       return { candidates: [] };
     }
@@ -274,26 +290,6 @@ const findAndRankCandidatesFlow = ai.defineFlow(
         applicationStatus,
       };
     });
-
-    // Send a real email to each candidate in the ranked list (optional, keep if needed)
-    // for (const candidate of candidatesWithStatus) {
-    //   try {
-    //     await sendApplicationStatusEmail({
-    //       to: candidate.email,
-    //       subject: `You've been ranked for new opportunities!`,
-    //       body: `
-    //         <p>Hi ${candidate.displayName},</p>
-    //         <p>You have been ranked as a potential match for new opportunities at your employer's company.</p>
-    //         <p>Your match score: <strong>${candidate.matchPercentage}%</strong></p>
-    //         <p>Reason: ${candidate.justification}</p>
-    //         <p>Log in to your Career Wise account to view more details and apply.</p>
-    //         <p>Best regards,<br/>Career Wise Team</p>
-    //       `
-    //     });
-    //   } catch (e) {
-    //     console.error(`[findAndRankCandidates] Failed to send email to ${candidate.email}:`, e);
-    //   }
-    // }
 
     return { candidates: candidatesWithStatus };
   }

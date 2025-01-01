@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -27,7 +26,6 @@ import {
   Sparkles,
   Copy,
   Check,
-  Wand2,
   ArrowLeft,
   Building2,
   User,
@@ -35,12 +33,15 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { generateCoverLetter } from "@/ai/flows/generate-cover-letter";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { AILoaderInline } from "@/components/ui/ai-loader";
 import Link from "next/link";
 import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useRateLimit";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { postAiJson } from "@/lib/ai-api-client";
+import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
+import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
 
 type Tone = "professional" | "enthusiastic" | "confident" | "conversational";
 type Length = "short" | "medium" | "long";
@@ -96,9 +97,26 @@ export default function CoverLetterGeneratorPage() {
     length: "medium",
   });
 
+  const career = useCareerContext();
+  usePrefill(career, (c) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name || c.name,
+      email: prev.email || c.email,
+      currentTitle: prev.currentTitle || c.title,
+      experience: prev.experience || c.experienceText,
+      skills: prev.skills || c.skillsText,
+      jobTitle: prev.jobTitle || c.job?.title || "",
+      company: prev.company || c.job?.company || "",
+      jobDescription: prev.jobDescription || c.job?.description || "",
+    }));
+  });
+
   const updateField = (field: keyof CoverLetterData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  useDemoAutoRun(!!(formData.jobTitle && formData.company && formData.jobDescription), () => handleGenerate());
 
   const handleGenerate = async () => {
     // Check rate limit
@@ -125,7 +143,7 @@ export default function CoverLetterGeneratorPage() {
 
     setIsGenerating(true);
     try {
-      const result = await generateCoverLetter({
+      const result = await postAiJson<GeneratedCoverLetter>("/api/ai/cover-letter", {
         userInfo: {
           name: formData.name,
           email: formData.email,
@@ -150,11 +168,11 @@ export default function CoverLetterGeneratorPage() {
         title: "Cover Letter Generated!",
         description: "Your personalized cover letter is ready.",
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Cover letter generation error:", error);
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate cover letter. Please try again.",
+        description: getErrorMessage(error) || "Failed to generate cover letter. Please try again.",
         variant: "destructive",
       });
     } finally {

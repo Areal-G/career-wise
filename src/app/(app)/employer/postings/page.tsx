@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from "next/link";
 import { collection, query, where, getDocs, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -36,7 +36,7 @@ export default function EmployerPostingsPage() {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('All');
 
-    const fetchPostings = async () => {
+    const fetchPostings = useCallback(async () => {
         if (user) {
             try {
                 const q = query(
@@ -84,13 +84,14 @@ export default function EmployerPostingsPage() {
             }
         }
         setLoading(false);
-    };
+    }, [user, toast]);
 
     useEffect(() => {
         if (!authLoading) {
             fetchPostings();
         }
-    }, [user, authLoading]);
+    }, [user, authLoading, fetchPostings]);
+
     
     const filteredPostings = useMemo(() => {
         if (statusFilter === 'All') return postings;

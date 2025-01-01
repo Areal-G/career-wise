@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   collection,
   query,
@@ -28,7 +28,10 @@ import {
   BarChart,
   PieChart as PieIcon,
   LineChart as LineIcon,
+  Clock,
+  TrendingUp,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   ChartConfig,
   ChartContainer,
@@ -42,13 +45,12 @@ import {
   PieChart as RechartsPieChart,
   Line,
   LineChart as RechartsLineChart,
-  ResponsiveContainer,
   XAxis,
   YAxis,
-  Tooltip,
   Legend,
   CartesianGrid,
   Cell,
+  LabelList,
 } from "recharts";
 
 interface Posting {
@@ -62,13 +64,32 @@ interface Posting {
 interface Application {
   id: string;
   opportunityId: string;
+  opportunityTitle?: string;
+  status: string;
   submittedAt: Timestamp;
+  createdAt?: Timestamp;
 }
+
+interface TopPosting {
+  title: string;
+  applicants: number;
+  interviews: number;
+  hired: number;
+  conversionRate: number;
+}
+
+const FUNNEL_COLORS = [
+  "hsl(var(--chart-3))", // Applied - cappuccino
+  "hsl(var(--chart-1))", // Screening - latte
+  "hsl(var(--chart-5))", // Interview
+  "hsl(var(--chart-2))", // Offer
+  "hsl(var(--chart-4))", // Hired - mostly milk
+];
 
 const chartConfigBar = {
   applicants: {
     label: "Applicants",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig;
 
@@ -86,7 +107,7 @@ const chartConfigPie = {
 const chartConfigLine = {
   applications: {
     label: "Applications",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig;
 
@@ -101,17 +122,14 @@ export default function AnalyticsPage() {
     activeJobs: 0,
     avgApplicants: 0,
   });
-  const [barChartData, setBarChartData] = useState<any[]>([]);
-  const [pieChartData, setPieChartData] = useState<any[]>([]);
-  const [lineChartData, setLineChartData] = useState<any[]>([]);
+  const [barChartData, setBarChartData] = useState<{ title: string; applicants: number }[]>([]);
+  const [pieChartData, setPieChartData] = useState<{ name: string; value: number; fill: string }[]>([]);
+  const [lineChartData, setLineChartData] = useState<{ date: string; applications: number }[]>([]);
+  const [funnelData, setFunnelData] = useState<{ stage: string; count: number; fill: string }[]>([]);
+  const [avgTimeToHire, setAvgTimeToHire] = useState<number>(0);
+  const [topPostings, setTopPostings] = useState<TopPosting[]>([]);
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchAnalyticsData();
-    }
-  }, [user, authLoading]);
-
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     if (user) {
       setLoading(true);
       try {
@@ -153,10 +171,9 @@ export default function AnalyticsPage() {
           .slice(0, 7)
           .map((p) => ({
             title:
-              p.title.length > 20 ? `${p.title.substring(0, 20)}...` : p.title,
+              p.title.length > 30 ? `${p.title.substring(0, 29)}…` : p.title,
             applicants: p.applicants || 0,
-          }))
-          .reverse();
+          }));
         setBarChartData(recentPostingsForBarChart);
 
         // --- Pie Chart Data ---
@@ -207,6 +224,76 @@ export default function AnalyticsPage() {
         } else {
           setLineChartData([]);
         }
+
+        // --- Fetch ALL applications for funnel + time-to-hire ---
+        const allAppsQuery = query(
+          collection(db, "applications"),
+          where("opportunityId", "in", opportunityIds.length > 0 ? opportunityIds.slice(0, 10) : ["__none__"])
+        );
+        const allAppsSnap = await getDocs(allAppsQuery);
+        const allApps: Application[] = allAppsSnap.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Application)
+        );
+
+        // Conversion Funnel
+        const statusCounts = {
+          Applied: 0,
+          Screening: 0,
+          Interview: 0,
+          Offer: 0,
+          Hired: 0,
+        };
+        allApps.forEach((app) => {
+          const s = app.status;
+          if (s === "Pending" || s === "Submitted") statusCounts.Applied++;
+          else if (s === "Screening") { statusCounts.Applied++; statusCounts.Screening++; }
+          else if (s === "Interview") { statusCounts.Applied++; statusCounts.Screening++; statusCounts.Interview++; }
+          else if (s === "Offer") { statusCounts.Applied++; statusCounts.Screening++; statusCounts.Interview++; statusCounts.Offer++; }
+          else if (s === "Hired" || s === "Approved") { statusCounts.Applied++; statusCounts.Screening++; statusCounts.Interview++; statusCounts.Offer++; statusCounts.Hired++; }
+          else { statusCounts.Applied++; }
+        });
+        setFunnelData(
+          Object.entries(statusCounts).map(([stage, count], i) => ({
+            stage,
+            count,
+            fill: FUNNEL_COLORS[i],
+          }))
+        );
+
+        // Time to Hire
+        const hiredApps = allApps.filter((a) => a.status === "Hired" || a.status === "Approved");
+        if (hiredApps.length > 0) {
+          const totalDays = hiredApps.reduce((sum, app) => {
+            const submitted = app.submittedAt?.toDate?.() || new Date();
+            const diffDays = Math.max(1, Math.floor((Date.now() - submitted.getTime()) / (1000 * 60 * 60 * 24)));
+            return sum + diffDays;
+          }, 0);
+          setAvgTimeToHire(Math.round(totalDays / hiredApps.length));
+        }
+
+        // Top Performing Postings
+        const postingAppMap: Record<string, Application[]> = {};
+        allApps.forEach((app) => {
+          if (!postingAppMap[app.opportunityId]) postingAppMap[app.opportunityId] = [];
+          postingAppMap[app.opportunityId].push(app);
+        });
+        const topPostingsData: TopPosting[] = postingsData
+          .map((p) => {
+            const apps = postingAppMap[p.id] || [];
+            const interviews = apps.filter((a) => ["Interview", "Offer", "Hired", "Approved"].includes(a.status)).length;
+            const hired = apps.filter((a) => a.status === "Hired" || a.status === "Approved").length;
+            return {
+              title: p.title,
+              applicants: apps.length,
+              interviews,
+              hired,
+              conversionRate: apps.length > 0 ? Math.round((hired / apps.length) * 100) : 0,
+            };
+          })
+          .sort((a, b) => b.applicants - a.applicants)
+          .slice(0, 5);
+        setTopPostings(topPostingsData);
+
       } catch (error) {
         console.error("Error fetching analytics data:", error);
         toast({
@@ -218,7 +305,13 @@ export default function AnalyticsPage() {
         setLoading(false);
       }
     }
-  };
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchAnalyticsData();
+    }
+  }, [user, authLoading, fetchAnalyticsData]);
 
   return (
     <div className="container mx-auto">
@@ -300,15 +393,33 @@ export default function AnalyticsPage() {
                     config={chartConfigBar}
                     className="min-h-[300px] w-full"
                   >
-                    <RechartsBarChart accessibilityLayer data={barChartData}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis
+                    <RechartsBarChart
+                      accessibilityLayer
+                      data={barChartData}
+                      layout="vertical"
+                      margin={{ left: 8, right: 32 }}
+                    >
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" hide allowDecimals={false} />
+                      <YAxis
+                        type="category"
                         dataKey="title"
+                        width={200}
                         tickLine={false}
-                        tickMargin={10}
                         axisLine={false}
+                        tick={({ x, y, payload }) => (
+                          <text
+                            x={x - 8}
+                            y={y}
+                            dy={4}
+                            textAnchor="end"
+                            fontSize={12}
+                            className="fill-foreground"
+                          >
+                            {payload.value}
+                          </text>
+                        )}
                       />
-                      <YAxis />
                       <ChartTooltip
                         cursor={false}
                         content={<ChartTooltipContent indicator="dot" />}
@@ -316,8 +427,16 @@ export default function AnalyticsPage() {
                       <Bar
                         dataKey="applicants"
                         fill="var(--color-applicants)"
-                        radius={8}
-                      />
+                        radius={6}
+                        barSize={22}
+                      >
+                        <LabelList
+                          dataKey="applicants"
+                          position="right"
+                          className="fill-foreground"
+                          fontSize={12}
+                        />
+                      </Bar>
                     </RechartsBarChart>
                   </ChartContainer>
                 ) : (
@@ -421,6 +540,96 @@ export default function AnalyticsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* NEW: Conversion Funnel + Time to Hire */}
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Hiring Funnel</CardTitle>
+                <CardDescription>Candidate progression through hiring stages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {funnelData.length > 0 && funnelData[0].count > 0 ? (
+                  <div className="space-y-3">
+                    {funnelData.map((stage, i) => {
+                      const maxCount = funnelData[0].count || 1;
+                      const pct = Math.round((stage.count / maxCount) * 100);
+                      return (
+                        <div key={stage.stage} className="flex items-center gap-3">
+                          <span className="text-sm font-medium w-20 shrink-0">{stage.stage}</span>
+                          <div className="flex-1 bg-muted rounded-full h-8 overflow-hidden">
+                            <div
+                              className="h-full rounded-full flex items-center px-3 transition-all duration-500"
+                              style={{ width: `${Math.max(pct, 8)}%`, backgroundColor: stage.fill }}
+                            >
+                              <span className={`text-xs font-semibold ${i <= 2 ? "text-white" : "text-[hsl(20_30%_15%)]"}`}>{stage.count}</span>
+                            </div>
+                          </div>
+                          <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p>No applications yet to build the funnel.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4" /> Time to Hire</CardTitle>
+                <CardDescription>Average days from application to hire</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <div className="text-5xl font-bold text-primary">{avgTimeToHire || "—"}</div>
+                <p className="text-sm text-muted-foreground mt-2">days average</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* NEW: Top Performing Postings */}
+          {topPostings.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Performing Postings</CardTitle>
+                <CardDescription>Ranked by applicant volume and conversion</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 font-medium">Job Title</th>
+                        <th className="text-center py-3 font-medium">Applicants</th>
+                        <th className="text-center py-3 font-medium">Interviews</th>
+                        <th className="text-center py-3 font-medium">Hired</th>
+                        <th className="text-center py-3 font-medium">Conversion</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topPostings.map((posting, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-3 font-medium">{posting.title}</td>
+                          <td className="text-center py-3">{posting.applicants}</td>
+                          <td className="text-center py-3">{posting.interviews}</td>
+                          <td className="text-center py-3">{posting.hired}</td>
+                          <td className="text-center py-3">
+                            <Badge variant={posting.conversionRate >= 20 ? "default" : "secondary"} className="rounded-full">
+                              {posting.conversionRate}%
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Mail, MapPin, Briefcase, GraduationCap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -31,7 +30,6 @@ export function ProfileCard({
   role = "employee",
   company,
   education,
-  onClose,
 }: ProfileCardProps) {
   const displaySkills = skills.slice(0, 4)
   const remainingSkills = skills.length - 4

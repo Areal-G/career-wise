@@ -38,7 +38,7 @@ interface ScoringWeights {
   keywordDensity: number;
 }
 
-interface DetailedScore {
+export interface DetailedScore {
   overallScore: number;
   categoryScores: {
     requiredSkills: number;
@@ -177,7 +177,6 @@ export class ComprehensiveATSScorer {
   // Parse job description into structured requirements
   private parseJobRequirements(jobDescription: string): JobRequirements {
     const tokens = this.tokenize(jobDescription);
-    const text = jobDescription.toLowerCase();
 
 
     // Identify required vs preferred skills based on context
@@ -189,7 +188,7 @@ export class ComprehensiveATSScorer {
 
     // Section-based preferred skill extraction
     const jobDescLower = jobDescription.toLowerCase();
-    let preferredSectionSkills: string[] = [];
+    const preferredSectionSkills: string[] = [];
     // Try to extract skills under a 'Preferred' section
     const preferredSectionMatch = jobDescLower.match(/preferred[\s\S]*?(qualifications|skills|requirements)?[:\-\n]+([\s\S]*?)(\n\n|$)/);
     if (preferredSectionMatch && preferredSectionMatch[2]) {
@@ -254,7 +253,7 @@ export class ComprehensiveATSScorer {
   }
 
   // Calculate individual category scores
-  private calculateCategoryScores(resumeData: ResumeData, jobReqs: JobRequirements): any {
+  private calculateCategoryScores(resumeData: ResumeData, jobReqs: JobRequirements): DetailedScore['categoryScores'] {
     const scores = {
       requiredSkills: 0,
       preferredSkills: 0,
@@ -337,7 +336,7 @@ export class ComprehensiveATSScorer {
   }
 
   // Generate improvement suggestions
-  private generateSuggestions(resumeData: ResumeData, jobReqs: JobRequirements, scores: any): string[] {
+  private generateSuggestions(resumeData: ResumeData, jobReqs: JobRequirements, scores: DetailedScore['categoryScores']): string[] {
     const suggestions: string[] = [];
 
     if (scores.requiredSkills < 70) {
@@ -433,74 +432,4 @@ export class ComprehensiveATSScorer {
   public setWeights(newWeights: Partial<ScoringWeights>): void {
     this.weights = { ...this.weights, ...newWeights };
   }
-}
-
-// Example usage
-export function demonstrateComprehensiveScoring(): void {
-  const scorer = new ComprehensiveATSScorer();
-
-  const resumeText = `
-    Senior Full Stack Developer with 5+ years of experience in React, Node.js, TypeScript, 
-    and AWS. Led development of microservices architecture using Docker and Kubernetes. 
-    Implemented CI/CD pipelines with Jenkins. AWS Certified Solutions Architect. 
-    Master's degree in Computer Science from Stanford University.
-    
-    Experience:
-    - Developed and maintained React applications serving 100K+ users
-    - Built RESTful APIs using Node.js and Express
-    - Implemented automated testing with Jest and Cypress
-    - Managed AWS infrastructure including EC2, RDS, and Lambda
-    - Led a team of 4 developers in agile environment
-  `;
-
-  const jobDescription = `
-    We are seeking a Senior Software Engineer to join our platform team. 
-    
-    Required Skills:
-    - 3+ years of experience with React and TypeScript
-    - Strong knowledge of Node.js and RESTful API development
-    - Experience with AWS services (EC2, RDS, Lambda)
-    - Proficiency in Docker and containerization
-    - Knowledge of CI/CD practices
-    
-    Preferred Skills:
-    - Kubernetes experience
-    - AWS certifications
-    - Experience with microservices architecture
-    - Leadership experience
-    
-    Responsibilities:
-    - Develop and maintain web applications
-    - Design and implement APIs
-    - Collaborate with cross-functional teams
-    - Code review and mentoring junior developers
-  `;
-
-  const result = scorer.calculateComprehensiveScore(resumeText, jobDescription);
-  
-  console.log('\n=== Comprehensive ATS Score Analysis ===');
-  console.log(`Overall Score: ${result.overallScore}%`);
-  console.log(`Confidence Level: ${result.confidenceLevel}`);
-  
-  console.log('\n--- Category Breakdown ---');
-  Object.entries(result.categoryScores).forEach(([category, score]) => {
-    console.log(`${category}: ${Math.round(score)}%`);
-  });
-  
-  console.log('\n--- Matched Elements ---');
-  console.log(`Skills: ${result.matched.skills.join(', ')}`);
-  console.log(`Keywords: ${result.matched.keywords.slice(0, 10).join(', ')}`);
-  
-  console.log('\n--- Missing Critical Elements ---');
-  console.log(`Critical Skills: ${result.missing.criticalSkills.join(', ')}`);
-  
-  console.log('\n--- Improvement Suggestions ---');
-  result.suggestions.forEach((suggestion, index) => {
-    console.log(`${index + 1}. ${suggestion}`);
-  });
-}
-
-// Run demonstration if this file is executed directly
-if (require.main === module) {
-  demonstrateComprehensiveScoring();
 }

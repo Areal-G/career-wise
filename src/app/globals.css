@@ -4,74 +4,84 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 231 48% 48%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 215.4 16.3% 46.9%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 215.4 16.3% 46.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 231 48% 48%;
+    /* Espresso — light: cream surfaces, roast-brown ink. Charts use milky latte shades. */
+    --background: 38 33% 96%;
+    --foreground: 20 30% 13%;
+    --card: 40 40% 98.5%;
+    --card-foreground: 20 30% 13%;
+    --popover: 40 40% 98.5%;
+    --popover-foreground: 20 30% 13%;
+    --primary: 22 48% 30%;
+    --primary-foreground: 38 45% 96%;
+    --secondary: 34 30% 91%;
+    --secondary-foreground: 22 35% 25%;
+    --muted: 34 28% 91%;
+    --muted-foreground: 24 14% 40%;
+    --accent: 32 45% 88%;
+    --accent-foreground: 22 45% 24%;
+    --destructive: 6 62% 45%;
+    --destructive-foreground: 38 45% 96%;
+    --border: 32 22% 84%;
+    --input: 32 22% 84%;
+    --ring: 22 48% 30%;
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222.2 84% 4.9%;
-    --sidebar-primary: 231 48% 48%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 84% 4.9%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 231 48% 48%;
+    --brand-crema: 32 62% 48%;
+    --brand-sage: 95 18% 40%;
+    --brand-caramel: 30 62% 44%;
+    --brand-mocha: 16 30% 36%;
+    --chart-1: 28 45% 46%;
+    --chart-2: 32 48% 58%;
+    --chart-3: 24 40% 33%;
+    --chart-4: 34 45% 69%;
+    --chart-5: 27 42% 52%;
+    --sidebar-background: 35 30% 93%;
+    --sidebar-foreground: 20 30% 13%;
+    --sidebar-primary: 22 48% 30%;
+    --sidebar-primary-foreground: 38 45% 96%;
+    --sidebar-accent: 32 40% 86%;
+    --sidebar-accent-foreground: 22 45% 22%;
+    --sidebar-border: 32 22% 84%;
+    --sidebar-ring: 22 48% 30%;
   }
 
   .dark {
-    --background: 20 14.3% 4.1%;
-    --foreground: 60 9.1% 97.8%;
-    --card: 24 9.8% 10%;
-    --card-foreground: 60 9.1% 97.8%;
-    --popover: 20 14.3% 4.1%;
-    --popover-foreground: 60 9.1% 97.8%;
-    --primary: 231 48% 48%;
-    --primary-foreground: 60 9.1% 97.8%;
-    --secondary: 12 6.5% 15.1%;
-    --secondary-foreground: 60 9.1% 97.8%;
-    --muted: 12 6.5% 15.1%;
-    --muted-foreground: 24 5.4% 63.9%;
-    --accent: 12 6.5% 15.1%;
-    --accent-foreground: 60 9.1% 97.8%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 60 9.1% 97.8%;
-    --border: 12 6.5% 15.1%;
-    --input: 12 6.5% 15.1%;
-    --ring: 231 48% 48%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 20 14.3% 4.1%;
-    --sidebar-foreground: 60 9.1% 97.8%;
-    --sidebar-primary: 231 48% 48%;
-    --sidebar-primary-foreground: 60 9.1% 97.8%;
-    --sidebar-accent: 12 6.5% 15.1%;
-    --sidebar-accent-foreground: 60 9.1% 97.8%;
-    --sidebar-border: 12 6.5% 15.1%;
-    --sidebar-ring: 231 48% 48%;
+    /* Espresso — dark: roasted-bean surfaces, crema accent. Charts use milky latte shades. */
+    --background: 20 16% 7%;
+    --foreground: 36 30% 92%;
+    --card: 20 14% 10%;
+    --card-foreground: 36 30% 92%;
+    --popover: 20 14% 10%;
+    --popover-foreground: 36 30% 92%;
+    --primary: 32 55% 60%;
+    --primary-foreground: 20 25% 9%;
+    --secondary: 22 12% 15%;
+    --secondary-foreground: 36 30% 92%;
+    --muted: 22 12% 14%;
+    --muted-foreground: 30 12% 64%;
+    --accent: 25 18% 18%;
+    --accent-foreground: 34 45% 82%;
+    --destructive: 6 58% 52%;
+    --destructive-foreground: 36 30% 95%;
+    --border: 22 12% 17%;
+    --input: 22 12% 17%;
+    --ring: 32 55% 60%;
+    --brand-crema: 32 55% 60%;
+    --brand-sage: 95 16% 58%;
+    --brand-caramel: 30 62% 58%;
+    --brand-mocha: 20 32% 64%;
+    --chart-1: 32 48% 54%;
+    --chart-2: 33 45% 64%;
+    --chart-3: 26 38% 40%;
+    --chart-4: 35 40% 73%;
+    --chart-5: 29 42% 47%;
+    --sidebar-background: 20 16% 6%;
+    --sidebar-foreground: 36 30% 92%;
+    --sidebar-primary: 32 55% 60%;
+    --sidebar-primary-foreground: 20 25% 9%;
+    --sidebar-accent: 25 18% 16%;
+    --sidebar-accent-foreground: 34 45% 82%;
+    --sidebar-border: 22 12% 15%;
+    --sidebar-ring: 32 55% 60%;
   }
 }
 
@@ -83,5 +93,13 @@
     @apply bg-background text-foreground;
     height: 100%;
     overflow: hidden;
+  }
+}
+
+@layer utilities {
+  /* Subtle dot texture for hero and page backgrounds */
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.07) 1px, transparent 1px);
+    background-size: 18px 18px;
   }
 }

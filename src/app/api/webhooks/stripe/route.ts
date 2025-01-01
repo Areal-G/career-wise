@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { adminDb } from "@/lib/firebase-admin";
 import Stripe from "stripe";
+import { getErrorMessage } from "@/lib/utils";
 
 // Stripe webhook secret - set this in your environment variables
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest) {
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err: any) {
-      console.error("Webhook signature verification failed:", err.message);
+    } catch (err) {
+      console.error("Webhook signature verification failed:", getErrorMessage(err));
       return NextResponse.json(
         { error: "Webhook signature verification failed" },
         { status: 400 }
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     // ===========================
     
     if (isEventProcessed(event.id)) {
-      console.log(`Event ${event.id} already processed, skipping`);
+      console.info(`Event ${event.id} already processed, skipping`);
       return NextResponse.json({ 
         received: true, 
         message: "Event already processed" 
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
             planUpdatedAt: new Date().toISOString(),
             lastWebhookEventId: event.id, // Track for debugging
           });
-          console.log(`Updated plan for user ${userId} to ${planId}`);
+          console.info(`Updated plan for user ${userId} to ${planId}`);
         }
         break;
       }
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
             subscriptionUpdatedAt: new Date().toISOString(),
             lastWebhookEventId: event.id,
           });
-          console.log(`Updated subscription status for user ${userId} to ${status}`);
+          console.info(`Updated subscription status for user ${userId} to ${status}`);
         }
         break;
       }
@@ -126,20 +127,20 @@ export async function POST(request: NextRequest) {
             planUpdatedAt: new Date().toISOString(),
             lastWebhookEventId: event.id,
           });
-          console.log(`Downgraded user ${userId} to free plan`);
+          console.info(`Downgraded user ${userId} to free plan`);
         }
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.info(`Unhandled event type: ${event.type}`);
     }
 
     // Mark event as processed AFTER successful handling
     markEventProcessed(event.id);
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Webhook error:", error);
     // Don't expose internal error details
     return NextResponse.json(

@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Award, 
@@ -20,7 +19,6 @@ import {
   Heart,
   Sparkles,
   Pencil,
-  FileText,
 } from 'lucide-react';
 import { 
   CertificationEntry, 
@@ -35,7 +33,6 @@ import {
   createEmptyExperience,
   createEmptyPublication,
   createEmptyVolunteering,
-  createEmptyCustomSection,
   createEmptyCustomSectionEntry,
   FIELD_LIMITS,
 } from '@/types/resume-types';
@@ -832,7 +829,7 @@ export function CustomSectionComponent({ section, onChange, onRemove }: CustomSe
     });
   };
 
-  const updateEntry = (id: string, updates: Partial<any>) => {
+  const updateEntry = (id: string, updates: Partial<CustomSectionProps["section"]["entries"][number]>) => {
     onChange({
       ...section,
       entries: section.entries.map(e => e.id === id ? { ...e, ...updates } : e)

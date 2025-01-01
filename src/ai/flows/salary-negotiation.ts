@@ -7,6 +7,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { requireServerAuthenticatedUser } from '@/lib/server-auth';
+import { enforceAiRateLimit } from '@/lib/ai-rate-limit';
+import { withRetry } from '@/ai/retry';
 
 const SalaryNegotiationInputSchema = z.object({
   role: z.string().describe('Job title'),
@@ -74,7 +77,7 @@ For salary ranges, provide numbers appropriate to the location's market.
 For negotiation scripts, write natural, professional dialogue.`,
   prompt: `Provide salary negotiation guidance for:
 
-Role: {{role}}
+Role: {{this.role}}
 {{#if company}}Company: {{company}}{{/if}}
 Location: {{location}}
 Experience: {{experienceYears}} years
@@ -96,28 +99,6 @@ Provide:
 5. Key tips for success`,
 });
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      const status = error?.status || error?.statusCode;
-      if (status !== 503 && status !== 429 && attempt > 0) throw error;
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw lastError || new Error('Max retries exceeded');
-}
-
 const salaryNegotiationFlow = ai.defineFlow(
   {
     name: 'salaryNegotiationFlow',
@@ -133,5 +114,11 @@ const salaryNegotiationFlow = ai.defineFlow(
 export async function getSalaryNegotiationAdvice(
   input: SalaryNegotiationInput
 ): Promise<SalaryNegotiationOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'salaryNegotiation',
+  });
   return salaryNegotiationFlow(input);
 }

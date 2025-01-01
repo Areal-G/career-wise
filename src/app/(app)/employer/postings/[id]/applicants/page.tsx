@@ -18,7 +18,7 @@ import {
   X,
   Eye,
   MessageSquare,
-  Video,
+  Kanban,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -41,6 +41,7 @@ import {
 } from "@/ai/flows/find-and-rank-candidates";
 import { ComprehensiveATSScorer } from "@/lib/comprehensiveAtsScorer";
 import { sendApplicationStatusEmailDirect } from "@/lib/email-utils";
+import { createNotification } from "@/lib/notifications";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
+import { skillOverlap } from "@/lib/career";
 
 type PotentialCandidate = FindAndRankCandidatesOutput["candidates"][0];
 
@@ -92,7 +94,7 @@ interface Applicant {
     | "looking_for_new_job"
     | "student"
     | "other";
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface Opportunity {
@@ -138,21 +140,6 @@ export default function ApplicantsPage() {
     router.push(`/chat/new?${params.toString()}`);
   };
 
-  // Function to start a video call with an applicant
-  const startVideoCallWithApplicant = (applicant: Applicant) => {
-    if (!user || !opportunity) return;
-    
-    const params = new URLSearchParams({
-      recipientId: applicant.userId,
-      recipientName: applicant.userName,
-      opportunityId: id as string,
-      opportunityTitle: opportunity.title,
-      applicationId: applicant.id,
-    });
-    
-    router.push(`/chat/video?${params.toString()}`);
-  };
-
   useEffect(() => {
     if (!id || !user) return;
 
@@ -181,7 +168,6 @@ export default function ApplicantsPage() {
             } as Applicant)
         );
         setApplicants(applicantsData);
-        const applicantUserIds = new Set(applicantsData.map((a) => a.userId));
 
         // Fetch potential candidates
         const { candidates } = await findAndRankCandidates({
@@ -210,11 +196,25 @@ export default function ApplicantsPage() {
     return applicants.filter((app) => app.status === applicantStatusFilter);
   }, [applicants, applicantStatusFilter]);
 
+  // Status for THIS posting comes from its real applications, not the ranker.
+  const statusFor = (c: PotentialCandidate): PotentialCandidate["applicationStatus"] => {
+    const app = applicants.find((a) => a.userId === c.uid);
+    if (!app) return c.applicationStatus === "invited" ? "invited" : "not_applied";
+    return String(app.status).toLowerCase() === "invited" ? "invited" : "applied";
+  };
+
+  // Role fit = share of THIS posting's skills the candidate covers. It drives the
+  // order and the badge so the number always agrees with the reasons shown.
   const filteredPotentialCandidates = useMemo(() => {
-    return potentialCandidates.filter(
-      (c) => c.matchPercentage >= matchPercentageFilter[0]
-    );
-  }, [potentialCandidates, matchPercentageFilter]);
+    return potentialCandidates
+      .map((c) => {
+        const why = skillOverlap(c.skills, opportunity?.skills);
+        const hasJobSkills = why.matched.length + why.missing.length > 0;
+        return { ...c, matchPercentage: hasJobSkills ? why.pct : c.matchPercentage };
+      })
+      .filter((c) => c.matchPercentage >= matchPercentageFilter[0])
+      .sort((a, b) => b.matchPercentage - a.matchPercentage);
+  }, [potentialCandidates, matchPercentageFilter, opportunity?.skills]);
 
   const handleNotify = () => {
     // This is where you would trigger a backend function to send emails.
@@ -235,7 +235,8 @@ export default function ApplicantsPage() {
 
   const handleInvitePotential = async (uid: string) => {
     // Find candidate details
-    const candidate = potentialCandidates.find((c) => c.uid === uid);
+    const candidate =
+      filteredPotentialCandidates.find((c) => c.uid === uid) ?? potentialCandidates.find((c) => c.uid === uid);
     if (!candidate || !opportunity || !id || !uid) {
       toast({
         title: "Error",
@@ -245,29 +246,7 @@ export default function ApplicantsPage() {
       return;
     }
 
-    // 1. Send real invite email
-    try {
-      const emailSent = await sendApplicationStatusEmailDirect(
-        candidate.email,
-        `Invitation to apply for ${opportunity.title}`,
-        `
-                    <p>Hello ${candidate.displayName},</p>
-                    <p>You are invited to apply for the <strong>${opportunity.title}</strong> position at <strong>${opportunity.employerName}</strong>.</p>
-                    <p>Your skills and experience make you a great fit for this role. Click below to view and apply:</p>
-                    <p><a href="${window.location.origin}/opportunities/${id}">View Opportunity</a></p>
-                    <p>Best regards,<br/>${opportunity.employerName} Team</p>
-                `
-      );
-    } catch (e) {
-      toast({
-        title: "Error",
-        description: "Failed to send invite email.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // 2. Update backend: add or update application with status 'Invited' using setDoc (merge: true)
+    // 1. Record the invite: add or update application with status 'Invited' using setDoc (merge: true)
     try {
       const appRef = doc(db, "applications", `${id}_${uid}`);
       await setDoc(
@@ -280,7 +259,7 @@ export default function ApplicantsPage() {
         },
         { merge: true }
       );
-    } catch (err) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update invite status.",
@@ -289,15 +268,35 @@ export default function ApplicantsPage() {
       return;
     }
 
-    // 3. Update UI: set status to 'invited' for this candidate
+    // 2. Tell the candidate in-app, and by email when email is configured (best effort).
+    void createNotification({
+      userId: uid,
+      type: "application_update",
+      title: `You're invited to apply: ${opportunity.title}`,
+      message: `${opportunity.employerName} thinks you'd be a great fit. Your match: ${candidate.matchPercentage}%.`,
+      link: `/opportunities/${id}/prepare`,
+      actorId: user?.uid,
+      actorName: opportunity.employerName,
+      metadata: { applicationId: `${id}_${uid}`, opportunityId: String(id) },
+    });
+    void sendApplicationStatusEmailDirect(
+      candidate.email,
+      `Invitation to apply for ${opportunity.title}`,
+      `<p>Hello ${candidate.displayName},</p>
+       <p>You are invited to apply for the <strong>${opportunity.title}</strong> position at <strong>${opportunity.employerName}</strong>.</p>
+       <p><a href="${window.location.origin}/opportunities/${id}">View the role</a></p>
+       <p>Best regards,<br/>${opportunity.employerName}</p>`
+    ).catch(() => undefined);
+
+    // 3. Update UI
     setPotentialCandidates((prev) =>
       prev.map((c) =>
         c.uid === uid ? { ...c, applicationStatus: "invited" } : c
       )
     );
     toast({
-      title: "Invitation Sent",
-      description: "A real invitation email has been sent to the candidate.",
+      title: "Invitation sent",
+      description: `${candidate.displayName} will see it in their notifications and on their tracker.`,
     });
   };
 
@@ -314,6 +313,21 @@ export default function ApplicantsPage() {
       toast({
         title: `Application ${status}`,
         description: `The candidate has been notified of their application status.`,
+      });
+
+      // Send in-app notification to applicant
+      createNotification({
+        userId: applicant.userId,
+        type: 'application_update',
+        title: `Application ${status}`,
+        message: `Your application for ${opportunity?.title || 'a position'} has been ${status.toLowerCase()}.`,
+        link: '/applications',
+        actorId: user?.uid,
+        actorName: opportunity?.employerName,
+        metadata: {
+          applicationId: applicant.id,
+          opportunityId: id as string,
+        },
       });
 
       // Send email notification
@@ -336,7 +350,7 @@ export default function ApplicantsPage() {
                     <p>The ${opportunity.employerName} Team</p>
                 `;
 
-        const emailSent = await sendApplicationStatusEmailDirect(
+        await sendApplicationStatusEmailDirect(
           applicant.userEmail,
           subject,
           body
@@ -387,7 +401,7 @@ export default function ApplicantsPage() {
       try {
         const scorer = new ComprehensiveATSScorer();
         atsResult = scorer.calculateComprehensiveScore(resumeText, jobDesc);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -587,7 +601,7 @@ export default function ApplicantsPage() {
           <CardContent>
             <div className="mb-4 space-y-2">
               <Label htmlFor="match-slider">
-                Minimum Match: {matchPercentageFilter[0]}%
+                Minimum role fit: {matchPercentageFilter[0]}%
               </Label>
               <Slider
                 id="match-slider"
@@ -642,7 +656,7 @@ export default function ApplicantsPage() {
                             variant="outline"
                             className="text-primary border-primary/50"
                           >
-                            {candidate.matchPercentage}%
+                            {candidate.matchPercentage}% fit
                           </Badge>
                         </div>
                         {/* Show which job this candidate is matched for */}
@@ -655,26 +669,46 @@ export default function ApplicantsPage() {
                           </span>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
-                          {candidate.justification}
+                          {candidate.matchPercentage > 0 || !opportunity?.skills
+                            ? candidate.justification
+                            : "Doesn't cover this role's listed skills yet. May suit another of your roles."}
                         </p>
+                        {(() => {
+                          const why = skillOverlap(candidate.skills, opportunity?.skills);
+                          if (!why.matched.length && !why.missing.length) return null;
+                          return (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] font-medium text-muted-foreground mr-1">
+                                Covers {why.matched.length}/{why.matched.length + why.missing.length} skills:
+                              </span>
+                              {why.matched.slice(0, 5).map((s) => (
+                                <span key={s} className="inline-flex items-center gap-1 rounded-full bg-brand-sage/10 px-2 py-0.5 text-[11px] font-medium text-brand-sage">
+                                  <Check className="h-3 w-3" />{s}
+                                </span>
+                              ))}
+                              {why.missing.slice(0, 3).map((s) => (
+                                <span key={s} className="rounded-full border border-dashed px-2 py-0.5 text-[11px] text-muted-foreground">
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </Link>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant={statusFor(candidate) === "not_applied" ? "default" : "outline"}
                         className="rounded-3xl"
-                        disabled={
-                          candidate.applicationStatus === "invited" ||
-                          candidate.applicationStatus === "applied"
-                        }
+                        disabled={statusFor(candidate) !== "not_applied"}
                         onClick={() => handleInvitePotential(candidate.uid)}
                       >
-                        {candidate.applicationStatus === "invited"
+                        {statusFor(candidate) === "invited"
                           ? "Invited"
-                          : candidate.applicationStatus === "applied"
-                          ? "Already Applied"
-                          : "Invite"}
+                          : statusFor(candidate) === "applied"
+                          ? "Applied"
+                          : <><Send className="mr-1.5 h-3.5 w-3.5" />Invite to apply</>}
                       </Button>
                       <Button
                         size="sm"
@@ -692,11 +726,19 @@ export default function ApplicantsPage() {
           </CardContent>
         </Card>
         <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Applicants</CardTitle>
-            <CardDescription>
-              People who have applied for this posting.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Applicants</CardTitle>
+              <CardDescription>
+                People who have applied for this posting.
+              </CardDescription>
+            </div>
+            <Link href={`/employer/postings/${params.id}/pipeline`}>
+              <Button variant="outline" size="sm" className="rounded-full gap-1.5">
+                <Kanban className="h-3.5 w-3.5" />
+                Pipeline View
+              </Button>
+            </Link>
           </CardHeader>
           <CardContent>
             <div className="mb-4">
@@ -812,15 +854,6 @@ export default function ApplicantsPage() {
                             title="Chat with applicant"
                           >
                             <MessageSquare className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8 rounded-3xl text-emerald-600 hover:text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                            onClick={() => startVideoCallWithApplicant(applicant)}
-                            title="Video call with applicant"
-                          >
-                            <Video className="h-4 w-4" />
                           </Button>
                         </>
                       )}

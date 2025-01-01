@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { FEATURES } from "@/lib/brand";
 import { motion, AnimatePresence } from "motion/react";
 import { useChat, Chat, Attachment } from "@/context/ChatContext";
 import { useAuth } from "@/context/AuthContext";
@@ -26,7 +27,6 @@ import {
   ArrowLeft,
   Download,
   MoreHorizontal,
-  MoreVertical,
   Copy,
   Reply,
   Trash2,
@@ -35,8 +35,6 @@ import {
   Check,
   CheckCheck,
   Video,
-  Lock,
-  User,
 } from "lucide-react";
 import { useEncryption } from "@/context/EncryptionContext";
 
@@ -46,6 +44,7 @@ interface ChatWindowProps {
 }
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 // Gradient backgrounds for avatars - matching user-nav style
 const AVATAR_GRADIENTS = [
@@ -89,8 +88,7 @@ function StatusBadge({ status }: { status: StatusType }) {
   );
 }
 
-// User actions menu (header)
-function UserActionsMenu() {
+function UserActionsMenuWithActions({ onDelete }: { onDelete: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -116,6 +114,7 @@ function UserActionsMenu() {
             <span className="font-medium text-xs">Block User</span>
           </Button>
           <Button
+            onClick={onDelete}
             className="w-full justify-start gap-2 rounded bg-transparent text-destructive hover:bg-accent"
             size="sm"
             type="button"
@@ -210,7 +209,7 @@ function MessageActions({ isMe, onCopy, onReply }: { isMe: boolean; onCopy: () =
 
 
 export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
-  const { activeChat, messages, messagesLoading, sendMessage, markAsRead } = useChat();
+  const { activeChat, messages, messagesLoading, sendMessage, markAsRead, deleteChat, setActiveChat } = useChat();
   const { user, userProfile } = useAuth();
   const { isReady: encryptionReady, isSupported: encryptionSupported, encrypt, decrypt, ensureKeys } = useEncryption();
   const { toast } = useToast();
@@ -237,7 +236,7 @@ export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
       applicationId: activeChat.applicationId || "",
     });
     
-    router.push(`/chat/video?${params.toString()}`);
+    router.push(`/video-call?${params.toString()}`);
   };
 
   const scrollToBottom = () => {
@@ -305,15 +304,6 @@ export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
     };
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   const handleCopyMessage = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied to clipboard" });
@@ -322,6 +312,26 @@ export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
   const handleReplyMessage = useCallback((messageText: string) => {
     setReplyingTo(messageText);
   }, []);
+
+  const handleDeleteConversation = useCallback(async () => {
+    if (!activeChat) return;
+
+    try {
+      await deleteChat(activeChat.id);
+      setActiveChat(null);
+      toast({ title: "Conversation removed" });
+      if (onBack) {
+        onBack();
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      toast({
+        title: "Delete failed",
+        description: "Could not remove the conversation.",
+        variant: "destructive",
+      });
+    }
+  }, [activeChat, deleteChat, onBack, setActiveChat, toast]);
 
   const handleSend = async () => {
     if (!activeChat || (!inputValue.trim() && attachments.length === 0)) return;
@@ -386,10 +396,13 @@ export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
           rel="noopener noreferrer"
           className="block"
         >
-          <img
+          <Image
             src={attachment.url}
             alt={attachment.name}
-            className="max-w-xs rounded-lg mt-2 hover:opacity-90 transition-opacity"
+            width={320}
+            height={240}
+            unoptimized
+            className="h-auto max-w-xs rounded-lg mt-2 hover:opacity-90 transition-opacity"
           />
         </a>
       );
@@ -475,7 +488,7 @@ export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
         </div>
         <div className="flex items-center gap-2">
           {/* Video call button - only for employers */}
-          {userProfile?.role === "employer" && activeChat && (
+          {FEATURES.videoCalls && userProfile?.role === "employer" && activeChat && (
             <Button
               variant="outline"
               size="icon"
@@ -486,7 +499,7 @@ export function ChatWindow({ onBack, showBackButton }: ChatWindowProps) {
               <Video className="h-4 w-4" />
             </Button>
           )}
-          <UserActionsMenu />
+                <UserActionsMenuWithActions onDelete={handleDeleteConversation} />
         </div>
       </div>
 

@@ -16,19 +16,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   TrendingUp,
-  Sparkles,
   ChevronRight,
   CheckCircle2,
-  XCircle,
   Clock,
   BookOpen,
   Award,
   Target,
-  ArrowRight,
-  ExternalLink,
   Plus,
   X,
 } from "lucide-react";
@@ -36,8 +31,12 @@ import { useToast } from "@/hooks/use-toast";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { AILoader } from "@/components/ui/ai-loader";
 import Link from "next/link";
-import { analyzeSkillGap, type AnalyzeSkillGapOutput } from "@/ai/flows/skill-gap";
 import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useRateLimit";
+import { postAiJson } from "@/lib/ai-api-client";
+import type { AnalyzeSkillGapOutput } from "@/lib/ai-tool-contracts";
+import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
+import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
 
 export default function SkillGapPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
@@ -59,6 +58,14 @@ export default function SkillGapPage() {
   const [skillInput, setSkillInput] = useState("");
   const [experience, setExperience] = useState("");
 
+  const career = useCareerContext();
+  usePrefill(career, (c) => {
+    setJobTitle((v) => v || c.job?.title || "");
+    setJobDescription((v) => v || c.job?.description || "");
+    setSkills((v) => (v.length ? v : c.skills));
+    setExperience((v) => v || c.experienceText);
+  });
+
   const addSkill = (skill: string) => {
     if (skill.trim() && !skills.includes(skill.trim())) {
       setSkills([...skills, skill.trim()]);
@@ -69,6 +76,8 @@ export default function SkillGapPage() {
   const removeSkill = (skill: string) => {
     setSkills(skills.filter(s => s !== skill));
   };
+
+  useDemoAutoRun(!!jobTitle.trim() && !!jobDescription.trim(), () => handleAnalyze());
 
   const handleAnalyze = async () => {
     // Check rate limit
@@ -95,7 +104,7 @@ export default function SkillGapPage() {
 
     setIsAnalyzing(true);
     try {
-      const analysis = await analyzeSkillGap({
+      const analysis = await postAiJson<AnalyzeSkillGapOutput>("/api/ai/skill-gap", {
         userSkills: skills,
         userExperience: experience || undefined,
         jobTitle,
@@ -103,10 +112,10 @@ export default function SkillGapPage() {
       });
       setResult(analysis);
       toast({ title: "Analysis complete!", description: `${analysis.overallMatch}% match` });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Analysis failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {

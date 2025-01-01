@@ -10,6 +10,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { requireServerAuthenticatedUser } from '@/lib/server-auth';
+import { enforceAiRateLimit } from '@/lib/ai-rate-limit';
+import { withRetry } from '@/ai/retry';
 
 const GenerateResumeSectionInputSchema = z.object({
   sectionType: z.enum([
@@ -47,6 +50,12 @@ export type GenerateResumeSectionOutput = z.infer<typeof GenerateResumeSectionOu
 export async function generateResumeSection(
   input: GenerateResumeSectionInput
 ): Promise<GenerateResumeSectionOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'resumeBuilder',
+  });
   return generateResumeSectionFlow(input);
 }
 
@@ -109,7 +118,7 @@ const GenerateFullResumeInputSchema = z.object({
   targetRole: z.string().optional(),
   targetCompany: z.string().optional(),
   jobDescription: z.string().optional(),
-  format: z.enum(['modern', 'classic', 'creative', 'executive']).default('modern'),
+  format: z.enum(['modern', 'classic', 'creative', 'executive', 'professional', 'minimal', 'elegant', 'tech']).default('modern'),
 });
 
 export type GenerateFullResumeInput = z.infer<typeof GenerateFullResumeInputSchema>;
@@ -140,6 +149,12 @@ export type GenerateFullResumeOutput = z.infer<typeof GenerateFullResumeOutputSc
 export async function generateFullResume(
   input: GenerateFullResumeInput
 ): Promise<GenerateFullResumeOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'resumeBuilder',
+  });
   return generateFullResumeFlow(input);
 }
 
@@ -185,37 +200,6 @@ Format Style: {{format}}
 Generate a complete, ATS-optimized resume with all sections.`,
 });
 
-// Helper function to retry with exponential backoff
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      
-      // Only retry on 503 (overloaded) or 429 (rate limit) errors
-      const status = error?.status || error?.statusCode;
-      if (status !== 503 && status !== 429 && attempt > 0) {
-        throw error;
-      }
-      
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        console.log(`AI API overloaded, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  
-  throw lastError || new Error('Max retries exceeded');
-}
-
 const generateFullResumeFlow = ai.defineFlow(
   {
     name: 'generateFullResumeFlow',
@@ -227,4 +211,3 @@ const generateFullResumeFlow = ai.defineFlow(
     return output!;
   }
 );
-

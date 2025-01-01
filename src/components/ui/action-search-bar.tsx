@@ -6,12 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Search,
     Send,
-    Briefcase,
-    MapPin,
-    Building2,
-    Code,
-    GraduationCap,
-    Clock,
 } from "lucide-react";
 
 function useDebounceLocal<T>(value: T, delay: number = 500): T {
@@ -181,7 +175,9 @@ function ActionSearchBar({
                         onKeyDown={handleKeyDown}
                         onFocus={handleFocus}
                         onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-                        className="pl-9 pr-9 py-1.5 h-9 text-sm rounded-full border-2 focus-visible:ring-offset-0"
+                        // The right padding only makes room for the send icon once there is a
+                        // query; while empty, the placeholder gets that space (it matters on phones).
+                        className={`pl-9 ${query.length > 0 ? "pr-9" : "pr-3"} py-1.5 h-9 text-ellipsis text-sm rounded-full border-2 focus-visible:ring-offset-0`}
                     />
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <button 

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -23,11 +22,9 @@ import {
   Send,
   MessageSquare,
   Gift,
-  Clock,
   User,
   FileText,
   Rocket,
-  ChevronRight,
 } from "lucide-react";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import Link from "next/link";
@@ -37,7 +34,6 @@ import {
   UserStreak,
   UserAchievement,
   getRarityColor,
-  type Achievement,
 } from "@/types/gamification-types";
 import { Application } from "@/types/application-types";
 
@@ -58,7 +54,36 @@ export default function AnalyticsPage() {
   });
   const [unlockedAchievements, setUnlockedAchievements] = useState<UserAchievement[]>([]);
 
-  // Load data from localStorage
+  // Count today's visit against the stored streak (functional update, so it sees the loaded value).
+  const updateStreak = useCallback(() => {
+    if (!user) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    setStreak((prev) => {
+      const lastActive = new Date(prev.lastActiveDate);
+      lastActive.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+
+      const next = { ...prev, lastActiveDate: today };
+      if (diffDays === 1) {
+        // Consecutive day
+        next.currentStreak += 1;
+        next.longestStreak = Math.max(next.longestStreak, next.currentStreak);
+      } else if (diffDays === 2 && prev.streakProtected) {
+        // Streak protection absorbs one missed day
+        next.streakProtected = false;
+      } else if (diffDays > 1) {
+        // Streak broken
+        next.currentStreak = 1;
+      }
+
+      localStorage.setItem(`streak_${user.uid}`, JSON.stringify(next));
+      return next;
+    });
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       // Load applications
@@ -104,39 +129,7 @@ export default function AnalyticsPage() {
       // Update streak on visit
       updateStreak();
     }
-  }, [user]);
-
-  const updateStreak = () => {
-    if (!user) return;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const lastActive = new Date(streak.lastActiveDate);
-    lastActive.setHours(0, 0, 0, 0);
-    
-    const diffDays = Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
-    
-    let newStreak = { ...streak };
-    
-    if (diffDays === 0) {
-      // Same day, no change
-    } else if (diffDays === 1) {
-      // Consecutive day
-      newStreak.currentStreak += 1;
-      newStreak.longestStreak = Math.max(newStreak.longestStreak, newStreak.currentStreak);
-    } else if (diffDays === 2 && streak.streakProtected) {
-      // Used streak protection
-      newStreak.streakProtected = false;
-    } else {
-      // Streak broken
-      newStreak.currentStreak = 1;
-    }
-    
-    newStreak.lastActiveDate = today;
-    setStreak(newStreak);
-    localStorage.setItem(`streak_${user.uid}`, JSON.stringify(newStreak));
-  };
+  }, [user, updateStreak]);
 
   // Calculate stats
   const stats: UserStats = useMemo(() => {
@@ -175,24 +168,19 @@ export default function AnalyticsPage() {
     ACHIEVEMENTS.forEach(achievement => {
       if (unlockedAchievements.find(ua => ua.achievementId === achievement.id)) return;
 
-      let progress = 0;
       let unlocked = false;
 
       switch (achievement.requirement.metric) {
         case 'totalApplications':
-          progress = (stats.totalApplications / achievement.requirement.target) * 100;
           unlocked = stats.totalApplications >= achievement.requirement.target;
           break;
         case 'totalInterviews':
-          progress = (stats.totalInterviews / achievement.requirement.target) * 100;
           unlocked = stats.totalInterviews >= achievement.requirement.target;
           break;
         case 'offersReceived':
-          progress = (stats.offersReceived / achievement.requirement.target) * 100;
           unlocked = stats.offersReceived >= achievement.requirement.target;
           break;
         case 'currentStreak':
-          progress = (streak.currentStreak / achievement.requirement.target) * 100;
           unlocked = streak.currentStreak >= achievement.requirement.target;
           break;
       }

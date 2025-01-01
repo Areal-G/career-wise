@@ -18,7 +18,6 @@ import {
 import { Progress } from "@/components/ui/progress";
 import {
   Linkedin,
-  Sparkles,
   ChevronRight,
   Copy,
   Check,
@@ -33,8 +32,13 @@ import { useToast } from "@/hooks/use-toast";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { AILoader } from "@/components/ui/ai-loader";
 import Link from "next/link";
-import { optimizeLinkedIn, type OptimizeLinkedInOutput } from "@/ai/flows/linkedin-optimizer";
 import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useRateLimit";
+import { PremiumGate } from "@/components/premium-gate";
+import { postAiJson } from "@/lib/ai-api-client";
+import type { OptimizeLinkedInOutput } from "@/lib/ai-tool-contracts";
+import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
+import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
 
 export default function LinkedInOptimizerPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
@@ -59,12 +63,22 @@ export default function LinkedInOptimizerPage() {
   );
   const [skillInput, setSkillInput] = useState("");
 
+  const career = useCareerContext();
+  usePrefill(career, (c) => {
+    setRole((v) => v || c.job?.title || c.title);
+    setSkills((v) => (v.length ? v : c.skills));
+    setCurrentHeadline((v) => v || (c.title ? `${c.title}` : ""));
+    setIndustry((v) => v || "Software & Technology");
+  });
+
   const addSkill = (skill: string) => {
     if (skill.trim() && !skills.includes(skill.trim())) {
       setSkills([...skills, skill.trim()]);
     }
     setSkillInput("");
   };
+
+  useDemoAutoRun(!!role.trim() && !!industry.trim() && skills.length > 0, () => handleOptimize());
 
   const handleOptimize = async () => {
     // Check rate limit
@@ -91,7 +105,7 @@ export default function LinkedInOptimizerPage() {
 
     setIsOptimizing(true);
     try {
-      const optimization = await optimizeLinkedIn({
+      const optimization = await postAiJson<OptimizeLinkedInOutput>("/api/ai/linkedin", {
         role,
         industry,
         skills,
@@ -100,10 +114,10 @@ export default function LinkedInOptimizerPage() {
       });
       setResult(optimization);
       toast({ title: "Profile optimized!", description: `${optimization.completenessScore}% completeness` });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Optimization failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -147,6 +161,7 @@ export default function LinkedInOptimizerPage() {
   }
 
   return (
+    <PremiumGate featureName="LinkedIn Optimizer" requiredPlan="pro">
     <div className="container mx-auto py-8 max-w-4xl relative">
       {isOptimizing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -445,5 +460,6 @@ export default function LinkedInOptimizerPage() {
         </div>
       )}
     </div>
+    </PremiumGate>
   );
 }

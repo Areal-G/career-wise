@@ -1,11 +1,12 @@
 "use client";
 
+import { BrandMark } from "@/components/brand-mark";
 import React, { useState } from "react";
 import {
   Sidebar,
   SidebarBody,
   SidebarLink,
-  useSidebar,
+  MobileSidebarTrigger,
 } from "@/components/ui/animated-sidebar";
 import {
   Briefcase,
@@ -15,126 +16,185 @@ import {
   User,
   FileText,
   BarChartHorizontal,
-  Crown,
   Rocket,
   Kanban,
   MessageSquare,
+  BarChart3,
+  Shield,
+  ScanSearch,
+  Route,
+  Linkedin,
+  FilePen,
+  Mail,
+  Mic,
+  Target,
+  DollarSign,
+  MailPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConditionalSearchBar } from "@/components/conditional-search-bar";
-import { HeaderQuickActions } from "@/components/header-quick-actions";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { UserNav } from "@/components/user-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const employeeLinks = [
   {
-    label: "Dashboard",
+    label: "Today",
     href: "/dashboard",
     icon: (
-      <LayoutDashboard className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <LayoutDashboard className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Opportunities",
     href: "/opportunities",
     icon: (
-      <Briefcase className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <Briefcase className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
+    ),
+  },
+  {
+    label: "Employers",
+    href: "/employers",
+    icon: (
+      <Building2 className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Applications",
     href: "/applications",
     icon: (
-      <Kanban className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <Kanban className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "LaunchPad",
     href: "/ai-tools",
     icon: (
-      <Rocket className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <Rocket className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Saved",
     href: "/saved",
     icon: (
-      <Heart className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <Heart className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Profile",
     href: "/profile",
     icon: (
-      <User className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <User className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Inbox",
     href: "/inbox",
     icon: (
-      <MessageSquare className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <MessageSquare className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
+    ),
+  },
+  {
+    label: "Insights",
+    href: "/insights",
+    icon: (
+      <BarChart3 className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
 ];
 
+/** LaunchPad tools, listed under LaunchPad in the sidebar while you're in LaunchPad. */
+const launchPadTools = [
+  { label: "Resume Match", href: "/ai-tools/resume-match", Icon: ScanSearch },
+  { label: "Resume Builder", href: "/ai-tools/resume-builder", Icon: FilePen },
+  { label: "Cover Letter", href: "/ai-tools/cover-letter", Icon: Mail },
+  { label: "Interview Prep", href: "/ai-tools/interview-prep", Icon: Mic },
+  { label: "Skill Gap", href: "/ai-tools/skill-gap", Icon: Target },
+  { label: "Career Path", href: "/ai-tools/career-path", Icon: Route },
+  { label: "Salary", href: "/ai-tools/salary", Icon: DollarSign },
+  { label: "LinkedIn", href: "/ai-tools/linkedin", Icon: Linkedin },
+  { label: "Email Templates", href: "/ai-tools/email-templates", Icon: MailPlus },
+].map(({ Icon, ...tool }) => ({
+  ...tool,
+  icon: <Icon className="text-sidebar-foreground/60 h-4 w-4 flex-shrink-0" />,
+}));
+
+const ACTIVE_LINK =
+  "bg-sidebar-accent rounded-lg px-2 [&_svg]:!text-primary [&_span]:!text-sidebar-accent-foreground [&_span]:font-medium";
+
+/** LaunchPad itself while you're inside it: solid espresso, so the lighter tool highlight sits under it. */
+const ACTIVE_SECTION =
+  "bg-primary rounded-lg px-2 [&_svg]:!text-primary-foreground [&_span]:!text-primary-foreground [&_span]:font-medium";
+
 const employerLinks = [
   {
-    label: "Dashboard",
+    label: "Today",
     href: "/employer/dashboard",
     icon: (
-      <Building2 className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <Building2 className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Postings",
     href: "/employer/postings",
     icon: (
-      <FileText className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <FileText className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Analytics",
     href: "/employer/analytics",
     icon: (
-      <BarChartHorizontal className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <BarChartHorizontal className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Profile",
     href: "/employer/profile",
     icon: (
-      <User className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <User className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
   {
     label: "Inbox",
     href: "/inbox",
     icon: (
-      <MessageSquare className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+      <MessageSquare className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
+    ),
+  },
+];
+
+const adminLinks = [
+  {
+    label: "Admin Dashboard",
+    href: "/admin",
+    icon: (
+      <Shield className="text-sidebar-foreground/70 h-5 w-5 flex-shrink-0" />
     ),
   },
 ];
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { role, user, loading } = useAuth();
+  const { role, loading } = useAuth();
   const pathname = usePathname();
 
-  const links = role === "employer" ? employerLinks : employeeLinks;
-  const dashboardHref = role === "employer" ? "/employer/dashboard" : "/dashboard";
+  // Keep the sidebar expanded inside LaunchPad so its tools stay visible.
+  const inLaunchPad = role !== "admin" && role !== "employer" && pathname.startsWith("/ai-tools");
+  const sidebarOpen = open || inLaunchPad;
+
+  const links = role === "admin" ? adminLinks : role === "employer" ? employerLinks : employeeLinks;
+  const dashboardHref = role === "admin" ? "/admin" : role === "employer" ? "/employer/dashboard" : "/dashboard";
 
   if (loading) {
     return (
       <div className="flex h-screen w-full">
-        <div className="w-[60px] bg-neutral-100 dark:bg-neutral-800 p-4">
+        <div className="w-[60px] bg-sidebar p-4">
           <Skeleton className="h-8 w-8 rounded-lg" />
           <div className="mt-8 flex flex-col gap-4">
             {[...Array(5)].map((_, i) => (
@@ -148,54 +208,66 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div
-      className={cn(
-        "flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
-        "h-screen"
-      )}
-    >
-      <Sidebar open={open} setOpen={setOpen}>
+    <Sidebar open={sidebarOpen} setOpen={setOpen}>
+      <div className="flex h-screen w-full flex-1 flex-col overflow-hidden border border-sidebar-border bg-sidebar md:flex-row">
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            {open ? <Logo href={dashboardHref} /> : <LogoIcon href={dashboardHref} />}
+            {sidebarOpen ? <Logo href={dashboardHref} /> : <LogoIcon href={dashboardHref} />}
             <div className="mt-8 flex flex-col gap-2">
-              {links.map((link, idx) => (
-                <SidebarLink
-                  key={idx}
-                  link={link}
-                  className={cn(
-                    pathname === link.href && "bg-neutral-200 dark:bg-neutral-700 rounded-lg px-2"
-                  )}
-                />
-              ))}
+              {links.map((link) => {
+                const showTools = link.href === "/ai-tools" && inLaunchPad;
+                const active = pathname === link.href || pathname.startsWith(link.href + "/");
+                return (
+                  <React.Fragment key={link.href}>
+                    <SidebarLink
+                      link={link}
+                      className={cn(active && (showTools ? ACTIVE_SECTION : ACTIVE_LINK))}
+                    />
+                    {showTools ? (
+                      <div className="ml-2.5 flex flex-col gap-0.5 border-l border-sidebar-border pl-3">
+                        {launchPadTools.map((tool) => (
+                          <SidebarLink
+                            key={tool.href}
+                            link={tool}
+                            className={cn(
+                              "py-1.5 [&_span]:text-[13px]",
+                              pathname === tool.href && ACTIVE_LINK
+                            )}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         </SidebarBody>
-      </Sidebar>
-      <div className="flex flex-1 flex-col overflow-hidden rounded-l-3xl bg-white dark:bg-neutral-900">
-        <header className="sticky top-0 z-10 flex h-10 shrink-0 items-center justify-between gap-4 dark:border-neutral-700 px-4 sm:h-auto sm:px-6 py-2">
-          <div className="flex-1" />
-          <div className="flex-1 flex justify-center max-w-xl">
-            <ConditionalSearchBar />
-          </div>
-          <div className="flex-1 flex items-center justify-end gap-4">
-            <HeaderQuickActions />
-            <Link 
-              href="/pricing"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 bg-clip-text text-transparent text-sm hover:from-amber-600 hover:to-yellow-600 transition-all border border-amber-600 dark:border-amber-600 rounded-full"
-            >
-              <span className="hidden sm:inline">Pricing</span>
-            </Link>
-            <NotificationsDropdown />
-            <ThemeToggle />
-            <UserNav />
-          </div>
-        </header>
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
-          {children}
-        </main>
+        <div className="flex flex-1 flex-col overflow-hidden bg-background md:rounded-l-3xl">
+          {/* One header row on every size: menu and logo (phones only), search, then account actions. */}
+          <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2 sm:gap-4 sm:px-6 md:border-b-0">
+            <div className="flex items-center gap-1 md:flex-1">
+              <MobileSidebarTrigger />
+              {/* Hidden on the narrowest phones: the drawer behind the menu button carries the logo, and search needs the width. */}
+              <span className="hidden sm:inline md:hidden">
+                <LogoIcon href={dashboardHref} />
+              </span>
+            </div>
+            <div className="flex min-w-0 flex-1 justify-center md:max-w-xl">
+              <ConditionalSearchBar />
+            </div>
+            <div className="flex items-center justify-end gap-1 sm:gap-4 md:flex-1">
+              <NotificationsDropdown />
+              <ThemeToggle />
+              <UserNav />
+            </div>
+          </header>
+          <main className="flex-1 p-4 md:p-6 overflow-auto bg-dots">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </Sidebar>
   );
 }
 
@@ -205,13 +277,7 @@ export const Logo = ({ href }: { href: string }) => {
       href={href}
       className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
     >
-      <Image
-        src="https://i.postimg.cc/nLrDYrHW/icon.png"
-        alt="Career Wise logo"
-        width={24}
-        height={24}
-        className="dark:bg-white dark:p-0.5 dark:rounded-3xl flex-shrink-0"
-      />
+      <BrandMark className="h-6 w-6" />
       <motion.span
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -229,13 +295,7 @@ export const LogoIcon = ({ href }: { href: string }) => {
       href={href}
       className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
     >
-      <Image
-        src="https://i.postimg.cc/nLrDYrHW/icon.png"
-        alt="Career Wise logo"
-        width={24}
-        height={24}
-        className="dark:bg-white dark:p-0.5 dark:rounded-3xl flex-shrink-0"
-      />
+      <BrandMark className="h-6 w-6" />
     </Link>
   );
 };

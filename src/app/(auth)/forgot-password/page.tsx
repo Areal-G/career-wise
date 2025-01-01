@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { getErrorMessage } from "@/lib/utils";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -39,10 +40,10 @@ export default function ForgotPasswordPage() {
         description: 'If an account with that email exists, we have sent a password reset link.',
       });
       router.push('/login');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }

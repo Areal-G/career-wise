@@ -6,11 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -22,10 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   Mail,
-  Sparkles,
   ChevronRight,
   Copy,
   Check,
@@ -43,10 +39,13 @@ import { useToast } from "@/hooks/use-toast";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { AILoader } from "@/components/ui/ai-loader";
 import Link from "next/link";
-import { generateEmail, type GenerateEmailOutput, type GenerateEmailInput } from "@/ai/flows/email-templates";
 import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useRateLimit";
-
-type TemplateType = GenerateEmailInput['templateType'];
+import { PremiumGate } from "@/components/premium-gate";
+import { postAiJson } from "@/lib/ai-api-client";
+import type { GenerateEmailOutput, TemplateType } from "@/lib/ai-tool-contracts";
+import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
+import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
 
 const TEMPLATE_TYPES: { value: TemplateType; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'follow-up', label: 'Follow-up', icon: Send, description: 'After application or interview' },
@@ -81,6 +80,14 @@ export default function EmailTemplatesPage() {
   const [context, setContext] = useState("");
   const [tone, setTone] = useState<'formal' | 'professional' | 'friendly'>('professional');
 
+  const career = useCareerContext();
+  usePrefill(career, (c) => {
+    setCompanyName((v) => v || c.job?.company || "");
+    setJobTitle((v) => v || c.job?.title || "");
+  });
+
+  useDemoAutoRun(!!companyName.trim(), () => handleGenerate());
+
   const handleGenerate = async () => {
     // Check rate limit
     if (!rateLimit.canProceed) {
@@ -102,7 +109,7 @@ export default function EmailTemplatesPage() {
 
     setIsGenerating(true);
     try {
-      const email = await generateEmail({
+      const email = await postAiJson<GenerateEmailOutput>("/api/ai/email-templates", {
         templateType,
         companyName,
         jobTitle: jobTitle || undefined,
@@ -114,10 +121,10 @@ export default function EmailTemplatesPage() {
       });
       setResult(email);
       toast({ title: "Email generated!" });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Generation failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -167,6 +174,7 @@ export default function EmailTemplatesPage() {
   }
 
   return (
+    <PremiumGate featureName="Email Templates" requiredPlan="pro">
     <div className="container mx-auto py-8 max-w-4xl relative">
       {isGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -404,5 +412,6 @@ export default function EmailTemplatesPage() {
         </div>
       )}
     </div>
+    </PremiumGate>
   );
 }

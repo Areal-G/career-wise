@@ -24,7 +24,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   DollarSign,
-  Sparkles,
   ChevronRight,
   TrendingUp,
   MessageSquare,
@@ -38,8 +37,13 @@ import { useToast } from "@/hooks/use-toast";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { AILoader } from "@/components/ui/ai-loader";
 import Link from "next/link";
-import { getSalaryNegotiationAdvice, type SalaryNegotiationOutput } from "@/ai/flows/salary-negotiation";
 import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useRateLimit";
+import { PremiumGate } from "@/components/premium-gate";
+import { postAiJson } from "@/lib/ai-api-client";
+import type { SalaryNegotiationOutput } from "@/lib/ai-tool-contracts";
+import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
+import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
 
 type NegotiationType = "new-offer" | "raise" | "counter-offer" | "research";
 
@@ -64,6 +68,17 @@ export default function SalaryNegotiatorPage() {
   const [offeredSalary, setOfferedSalary] = useState<number | undefined>();
   const [negotiationType, setNegotiationType] = useState<NegotiationType>("research");
 
+  const career = useCareerContext();
+  usePrefill(career, (c) => {
+    setRole((v) => v || c.job?.title || c.title);
+    setCompany((v) => v || c.job?.company || "");
+    setLocation((v) => v || c.job?.location || c.location);
+    if (c.experienceYears) setExperienceYears(c.experienceYears);
+    if (c.job) setNegotiationType("new-offer");
+  });
+
+  useDemoAutoRun(!!role.trim() && !!location.trim(), () => handleAnalyze());
+
   const handleAnalyze = async () => {
     // Check rate limit
     if (!rateLimit.canProceed) {
@@ -85,7 +100,7 @@ export default function SalaryNegotiatorPage() {
 
     setIsAnalyzing(true);
     try {
-      const advice = await getSalaryNegotiationAdvice({
+      const advice = await postAiJson<SalaryNegotiationOutput>("/api/ai/salary", {
         role,
         company: company || undefined,
         location,
@@ -96,10 +111,10 @@ export default function SalaryNegotiatorPage() {
       });
       setResult(advice);
       toast({ title: "Analysis complete!" });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Analysis failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -144,6 +159,7 @@ export default function SalaryNegotiatorPage() {
   }
 
   return (
+    <PremiumGate featureName="Salary Negotiator" requiredPlan="pro">
     <div className="container mx-auto py-8 max-w-4xl relative">
       {isAnalyzing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -362,7 +378,7 @@ export default function SalaryNegotiatorPage() {
                 <div className="space-y-3">
                   {result.negotiationScript.responses.slice(0, 3).map((r, i) => (
                     <div key={i} className="bg-muted/50 p-3 rounded-lg">
-                      <p className="text-sm font-medium text-orange-600">"{r.objection}"</p>
+                      <p className="text-sm font-medium text-orange-600">&quot;{r.objection}&quot;</p>
                       <p className="text-sm mt-1">{r.response}</p>
                     </div>
                   ))}
@@ -435,5 +451,6 @@ export default function SalaryNegotiatorPage() {
         </div>
       )}
     </div>
+    </PremiumGate>
   );
 }

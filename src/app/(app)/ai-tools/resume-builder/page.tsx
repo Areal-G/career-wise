@@ -6,26 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   FileText,
-  Sparkles,
   Download,
   Copy,
   Check,
   Wand2,
   Eye,
   Edit3,
-  User,
-  Briefcase,
-  Code,
-  FolderGit2,
-  GraduationCap,
-  Award,
-  Trophy,
-  Globe,
-  Settings2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LumaSpin } from "@/components/ui/luma-spin";
@@ -38,8 +26,6 @@ import {
   createEmptyResume,
   validateResume,
   SECTION_CONFIGS,
-  DEFAULT_SECTION_ORDER,
-  DEFAULT_ENABLED_SECTIONS,
 } from "@/types/resume-types";
 
 import {
@@ -63,6 +49,10 @@ import {
   type TemplateId,
 } from "@/components/resume-builder";
 import { createEmptyCustomSection } from "@/types/resume-types";
+import { saveAiResult } from "@/lib/ai-history";
+import { isDemoUser, useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
+import type { DocumentData } from "firebase/firestore";
 
 export default function ResumeBuilderPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
@@ -84,8 +74,9 @@ export default function ResumeBuilderPage() {
         newResume.header.email = user.email || '';
         newResume.header.linkedin = userProfile.linkedinLink || '';
         if (userProfile.skills) {
-          newResume.skills.technical = userProfile.skills.split(',').map(s => s.trim()).filter(Boolean);
+          newResume.skills.technical = userProfile.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
         }
+        if (isDemoUser(user.uid)) fillDemoResume(newResume, userProfile);
       }
       setResume(newResume);
     }
@@ -103,6 +94,8 @@ export default function ResumeBuilderPage() {
     return resume.enabledSections.includes(sectionId);
   };
 
+  useDemoAutoRun(!!resume && validateResume(resume).length === 0, () => handleAIGenerate());
+
   const handleAIGenerate = async () => {
     if (!resume) return;
     
@@ -118,10 +111,12 @@ export default function ResumeBuilderPage() {
     
     setIsGenerating(true);
     try {
-      // Import the AI flow dynamically
-      const { generateFullResume } = await import("@/ai/flows/generate-resume");
-      
-      const result = await generateFullResume({
+      const response = await fetch("/api/ai/resume-builder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
         userInfo: {
           name: resume.header.fullName,
           email: resume.header.email,
@@ -144,11 +139,19 @@ export default function ResumeBuilderPage() {
         targetCompany: resume.targetCompany,
         jobDescription: resume.jobDescription,
         format: resume.templateId,
+        }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to enhance resume. Please try again.");
+      }
       
-      // Update resume with AI-generated content
-      updateResume('summary', result.summary);
-      updateResume('atsScore', result.atsScore);
+      void saveAiResult("resume-builder", { role: resume.header.jobTitle, company: resume.targetCompany }, result);
+
+      // Update resume with AI-generated content (one functional update so neither field is lost)
+      setResume((r) => (r ? { ...r, summary: result.summary, atsScore: result.atsScore, updatedAt: new Date() } : r));
       
       toast({
         title: "Resume Enhanced!",
@@ -156,11 +159,11 @@ export default function ResumeBuilderPage() {
       });
       
       setActiveTab('preview');
-    } catch (error: any) {
+    } catch (error) {
       console.error("Resume generation error:", error);
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to enhance resume. Please try again.",
+        description: getErrorMessage(error) || "Failed to enhance resume. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -542,5 +545,59 @@ export default function ResumeBuilderPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Guest demo: turn the seeded profile into a complete resume so the builder has real content. */
+function fillDemoResume(resume: Resume, p: DocumentData) {
+  resume.name = "Demo resume";
+  resume.header.fullName ||= [p.firstName, p.lastName].filter(Boolean).join(" ");
+  resume.header.jobTitle = String(p.headline || "").split(/[·|]/)[0].trim();
+  resume.header.phone = p.contactNumber || "";
+  resume.header.location = p.location || "";
+  resume.summary = p.bio || "";
+  resume.experience = String(p.employmentHistory || "")
+    .split("\n")
+    .map((line) => line.match(/^(.*?)\s+[—–-]\s+(.*?)\s*\((\d{4})[–-](\w+)\)\s*:?\s*(.*)$/))
+    .filter((m): m is RegExpMatchArray => !!m)
+    .map((m) => ({
+      id: crypto.randomUUID(),
+      jobTitle: m[1].trim(),
+      company: m[2].trim(),
+      location: "",
+      startDate: m[3],
+      endDate: /present/i.test(m[4]) ? "" : m[4],
+      current: /present/i.test(m[4]),
+      bullets: m[5]
+        .split(/;\s*|\.\s+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((text) => ({ id: crypto.randomUUID(), text: text[0].toUpperCase() + text.slice(1) })),
+    }));
+  resume.education = String(p.education || "")
+    .split("\n")
+    .map((line) => line.match(/^(.*?),\s*(.*?)\s*\((\d{4})\)/))
+    .filter((m): m is RegExpMatchArray => !!m)
+    .map((m) => {
+      const [degree, ...field] = m[1].split(" ");
+      return {
+        id: crypto.randomUUID(),
+        degree,
+        fieldOfStudy: field.join(" "),
+        institution: m[2],
+        location: "",
+        startDate: "",
+        endDate: m[3],
+      };
+    });
+  resume.projects = (Array.isArray(p.portfolioProjects) ? p.portfolioProjects : []).map(
+    (proj: { title: string; description: string; url?: string }) => ({
+      id: crypto.randomUUID(),
+      name: proj.title,
+      techStack: [],
+      description: proj.description,
+      bullets: [proj.description],
+      liveUrl: proj.url,
+    })
   );
 }

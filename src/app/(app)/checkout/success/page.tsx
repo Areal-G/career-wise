@@ -9,15 +9,13 @@ import Link from "next/link";
 import { triggerFireworks } from "@/components/ui/confetti";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { useAuth } from "@/context/AuthContext";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/utils";
 
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [planUpdated, setPlanUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [planInfo, setPlanInfo] = useState<{ name: string; id: string } | null>(null);
 
@@ -38,22 +36,14 @@ export default function CheckoutSuccessPage() {
         }
 
         if (data.planId && data.userId === user.uid) {
-          // Update user's plan in Firestore
-          await updateDoc(doc(db, "users", user.uid), {
-            plan: data.planId,
-            subscriptionId: data.subscriptionId,
-            planUpdatedAt: new Date().toISOString(),
-          });
-          
           setPlanInfo({ name: data.planName || data.planId, id: data.planId });
-          setPlanUpdated(true);
           
           // Trigger fireworks confetti animation
           triggerFireworks(5000);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error("Plan update error:", err);
-        setError(err.message);
+        setError(getErrorMessage(err));
         // Still show success UI even if plan update fails - webhook will handle it
         triggerFireworks(3000);
       } finally {
@@ -130,4 +120,3 @@ export default function CheckoutSuccessPage() {
     </div>
   );
 }
-

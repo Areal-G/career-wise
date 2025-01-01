@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
+import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { requireAuth } from "@/lib/api-auth";
 
@@ -50,14 +50,6 @@ function validateFileSignature(buffer: Buffer, mimeType: string): boolean {
   );
 }
 
-// Sanitize filename to prevent path traversal
-function sanitizeFilename(filename: string): string {
-  return filename
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/\.{2,}/g, '_')
-    .slice(0, 100);
-}
-
 // Get file extension
 function getFileExtension(filename: string): string {
   const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
@@ -67,7 +59,7 @@ function getFileExtension(filename: string): string {
 export async function POST(req: NextRequest) {
   try {
     // Rate limiting
-    const rateLimitResponse = withRateLimit(req, RATE_LIMITS.upload);
+    const rateLimitResponse = await withRateLimit(req, RATE_LIMITS.upload);
     if (rateLimitResponse) return rateLimitResponse;
 
     // Authentication required for uploads
@@ -146,11 +138,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sanitize filename for logging
-    const safeFilename = sanitizeFilename(file.name);
+    // Local/demo fallback when Cloudinary is not configured: return the image
+    // inline as a data URL (raster formats only — SVG could carry script).
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
+      if (file.type === "image/svg+xml") {
+        return NextResponse.json({ error: "SVG uploads need cloud storage configured" }, { status: 400 });
+      }
+      return NextResponse.json({
+        url: `data:${file.type};base64,${buffer.toString("base64")}`,
+        message: "File stored inline (demo mode)",
+      });
+    }
 
     // Upload to Cloudinary with secure settings
-    const result = await new Promise((resolve, reject) => {
+    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
           {
@@ -164,8 +165,8 @@ export async function POST(req: NextRequest) {
             ],
           },
           (error, result) => {
-            if (error) {
-              reject(error);
+            if (error || !result) {
+              reject(error ?? new Error("Upload returned no result"));
             } else {
               resolve(result);
             }
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ 
-      url: (result as any).secure_url,
+      url: result.secure_url,
       message: "File uploaded successfully"
     });
   } catch (error) {

@@ -7,6 +7,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { requireServerAuthenticatedUser } from '@/lib/server-auth';
+import { enforceAiRateLimit } from '@/lib/ai-rate-limit';
+import { withRetry } from '@/ai/retry';
 
 const OptimizeLinkedInInputSchema = z.object({
   currentHeadline: z.string().optional(),
@@ -64,7 +67,7 @@ Write in first person for About sections.
 Headlines should be punchy and keyword-rich.`,
   prompt: `Optimize LinkedIn profile for:
 
-Target Role: {{role}}
+Target Role: {{this.role}}
 Industry: {{industry}}
 
 Skills:
@@ -86,28 +89,6 @@ Provide:
 5. Profile completeness score and improvements`,
 });
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      const status = error?.status || error?.statusCode;
-      if (status !== 503 && status !== 429 && attempt > 0) throw error;
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw lastError || new Error('Max retries exceeded');
-}
-
 const optimizeLinkedInFlow = ai.defineFlow(
   {
     name: 'optimizeLinkedInFlow',
@@ -123,5 +104,11 @@ const optimizeLinkedInFlow = ai.defineFlow(
 export async function optimizeLinkedIn(
   input: OptimizeLinkedInInput
 ): Promise<OptimizeLinkedInOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'linkedinOptimizer',
+  });
   return optimizeLinkedInFlow(input);
 }

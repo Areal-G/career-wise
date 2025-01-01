@@ -15,6 +15,7 @@ import {
   increment,
   runTransaction,
 } from "firebase/firestore";
+import { requireServerAuthenticatedUser } from "@/lib/server-auth";
 
 // Lazy initialization to avoid client-side errors
 let resend: Resend | null = null;
@@ -34,6 +35,7 @@ export type SendWelcomeEmailInput = z.infer<typeof SendWelcomeEmailInputSchema>;
 export async function sendWelcomeEmail(
   input: SendWelcomeEmailInput
 ): Promise<void> {
+  await requireServerAuthenticatedUser();
   return sendWelcomeEmailFlow(input);
 }
 
@@ -92,22 +94,17 @@ const sendWelcomeEmailFlow = ai.defineFlow(
       </div>
     `;
 
-    try {
-      const { data, error } = await getResend().emails.send({
-        from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
-        to: [to],
-        subject: subject,
-        html: body,
-      });
+    const { error } = await getResend().emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
+      to: [to],
+      subject: subject,
+      html: body,
+    });
 
-      if (error) {
-        console.error("Resend error:", error);
-        return;
-      }
-
-      console.log("Welcome email sent successfully:", data?.id);
-    } catch (error) {
-      console.error("Error sending welcome email:", error);
+    if (error) {
+      console.error("Resend error:", error);
+      return;
     }
+
   }
 );

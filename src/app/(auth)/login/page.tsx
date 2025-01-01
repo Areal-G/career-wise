@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandMark } from "@/components/brand-mark";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,18 +14,20 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import { Eye, EyeOff, Sparkles, Mail } from "lucide-react";
-import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { sendWelcomeEmailDirect } from "@/lib/email-utils";
 import { handleFirstLogin } from "@/lib/automated-email-service";
+import { useDemoLogin } from "@/hooks/use-demo-login";
 import { AnimatedCharacters } from "@/components/ui/animated-characters";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
+import { toPublicProfile } from "@/lib/public-profile";
+import { syncAdminRole } from "./actions";
+import { getErrorMessage } from "@/lib/utils";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -43,6 +46,18 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const demo = useDemoLogin();
+  const demoLoading = demo.pending;
+  const handleDemoLogin = async (role: "employee" | "employer") => {
+    setError("");
+    try {
+      await demo.start(role);
+    } catch (err) {
+      setError(getErrorMessage(err) || "Could not start the demo.");
+      toast({ title: "Demo unavailable", description: getErrorMessage(err), variant: "destructive" });
+    }
+  };
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -51,7 +66,6 @@ export default function LoginPage() {
     },
   });
 
-  const email = form.watch("email");
   const password = form.watch("password");
 
   const onSubmit = async (values: LoginFormValues) => {
@@ -61,7 +75,7 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(
         auth,
         values.email,
-        values.password
+        values.password,
       );
       const user = userCredential.user;
 
@@ -71,28 +85,35 @@ export default function LoginPage() {
       // Handle first login automation
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
+        await setDoc(
+          doc(db, "publicProfiles", user.uid),
+          toPublicProfile({ uid: user.uid, ...userData }),
+          { merge: true },
+        );
         await handleFirstLogin(
           user.uid,
           user.email!,
-          userData.displayName || user.email!
+          userData.displayName || user.email!,
         );
       }
 
-      toast({
-        title: "Login Successful",
-        description: "Welcome back! You're being redirected to your dashboard.",
-      });
-
-      if (userDocSnap.exists() && userDocSnap.data().role === "employer") {
-        router.push("/employer/dashboard");
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if ((await syncAdminRole(await user.getIdToken())) || userData.role === "admin") {
+          router.push("/admin");
+        } else if (userData.role === "employer") {
+          router.push("/employer/dashboard");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         router.push("/dashboard");
       }
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password. Please try again.");
+    } catch (err) {
+      setError(getErrorMessage(err) || "Invalid email or password. Please try again.");
       toast({
         title: "Login Failed",
-        description: err.message,
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     } finally {
@@ -110,64 +131,28 @@ export default function LoginPage() {
       const userDocSnap = await getDoc(userDocRef);
 
       if (!userDocSnap.exists()) {
-        // New user logic
-        const emailDomain = user.email?.split("@")[1];
-        const role = emailDomain === "gmail.com" ? "employee" : "employer";
-
-        const nameParts = user.displayName?.split(" ") || [];
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
-
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          role: role,
-          photoURL: user.photoURL,
-          firstName: firstName,
-          lastName: lastName,
-          ...(role === "employer" && { companyName: user.displayName }),
-        });
-
-        const emailSent = await sendWelcomeEmailDirect(
-          user.email!,
-          user.displayName!
-        );
-
-        // Handle first login for new Google users
-        await handleFirstLogin(
-          user.uid,
-          user.email!,
-          user.displayName!
-        );
-
-        toast({
-          title: "Account Created",
-          description: "Welcome! Your account has been set up.",
-        });
-
-        if (role === "employer") {
-          router.push("/employer/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        // New Google user: they choose seeker vs employer during onboarding.
+        router.push("/onboarding");
       } else {
         // Existing user logic
-        toast({
-          title: "Login Successful",
-          description: "Welcome back! You're being redirected.",
-        });
+        await setDoc(
+          doc(db, "publicProfiles", user.uid),
+          toPublicProfile({ uid: user.uid, ...userDocSnap.data() }),
+          { merge: true },
+        );
         const userData = userDocSnap.data();
-        if (userData.role === "employer") {
+        if ((await syncAdminRole(await user.getIdToken())) || userData.role === "admin") {
+          router.push("/admin");
+        } else if (userData.role === "employer") {
           router.push("/employer/dashboard");
         } else {
           router.push("/dashboard");
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Google Sign-In Failed",
-        description: err.message,
+        description: getErrorMessage(err),
         variant: "destructive",
       });
     }
@@ -176,16 +161,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen max-h-screen overflow-hidden grid lg:grid-cols-2">
       {/* Left Content Section with Animated Characters */}
-      <div className="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 dark:from-white/90 dark:via-white/80 dark:to-white/70 p-12 text-white dark:text-gray-900">
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[hsl(20_22%_14%)] p-12 text-[hsl(36_35%_92%)]">
         <div className="relative z-20">
-          <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
-            <Image
-              src="https://i.postimg.cc/nLrDYrHW/icon.png"
-              alt="Career Wise logo"
-              width={32}
-              height={32}
-              className="bg-white/10 backdrop-blur-sm p-1 rounded-lg"
-            />
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
+            <BrandMark className="h-8 w-8" />
             <span>Career Wise</span>
           </Link>
         </div>
@@ -198,22 +180,23 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="relative z-20 flex items-center gap-8 text-sm text-gray-600 dark:text-gray-700">
-          <a href="#" className="hover:text-gray-900 dark:hover:text-black transition-colors">
+        <div className="relative z-20 flex items-center gap-8 text-sm text-white/70">
+          <a
+            href="/privacy-policy"
+            className="hover:text-white transition-colors"
+          >
             Privacy Policy
           </a>
-          <a href="#" className="hover:text-gray-900 dark:hover:text-black transition-colors">
+          <a
+            href="/terms"
+            className="hover:text-white transition-colors"
+          >
             Terms of Service
-          </a>
-          <a href="#" className="hover:text-gray-900 dark:hover:text-black transition-colors">
-            Contact
           </a>
         </div>
 
         {/* Decorative elements */}
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
-        <div className="absolute top-1/4 right-1/4 size-64 bg-gray-400/20 dark:bg-gray-300/30 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/4 size-96 bg-gray-300/20 dark:bg-gray-200/20 rounded-full blur-3xl" />
       </div>
 
       {/* Right Login Section */}
@@ -221,26 +204,26 @@ export default function LoginPage() {
         <div className="w-full max-w-[420px]">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-2 text-lg font-semibold mb-12">
-            <Image
-              src="https://i.postimg.cc/nLrDYrHW/icon.png"
-              alt="Career Wise logo"
-              width={32}
-              height={32}
-              className="dark:bg-white dark:p-1 dark:rounded-md"
-            />
+            <BrandMark className="h-8 w-8" />
             <span>Career Wise</span>
           </div>
 
           {/* Header */}
           <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome back!</h1>
-            <p className="text-muted-foreground text-sm">Please enter your details</p>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">
+              Welcome back!
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Please enter your details
+            </p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -252,12 +235,16 @@ export default function LoginPage() {
                 className="h-12 bg-background border-border/60 focus:border-primary"
               />
               {form.formState.errors.email && (
-                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.email.message}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -279,7 +266,9 @@ export default function LoginPage() {
                 </button>
               </div>
               {form.formState.errors.password && (
-                <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.password.message}
+                </p>
               )}
             </div>
 
@@ -307,17 +296,44 @@ export default function LoginPage() {
               </div>
             )}
 
-            <InteractiveHoverButton 
-              type="submit" 
+            <InteractiveHoverButton
+              type="submit"
               text={isLoading ? "Signing in..." : "Log in"}
               className="w-full h-12 text-base font-medium"
               disabled={isLoading}
             />
           </form>
 
+          {/* Guest demo */}
+          <div className="mt-6 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
+            <p className="text-sm font-medium text-foreground">Just looking around?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Explore with a sample account full of jobs, applications and messages. No sign-up needed.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                className="h-10"
+                disabled={demoLoading !== null}
+                onClick={() => handleDemoLogin("employee")}
+              >
+                {demoLoading === "employee" ? "Preparing demo..." : "Try demo as job seeker"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10"
+                disabled={demoLoading !== null}
+                onClick={() => handleDemoLogin("employer")}
+              >
+                {demoLoading === "employer" ? "Preparing demo..." : "Try demo as employer"}
+              </Button>
+            </div>
+          </div>
+
           {/* Social Login */}
           <div className="mt-6">
-            <InteractiveHoverButton 
+            <InteractiveHoverButton
               type="button"
               text="Log in with Google"
               className="w-full h-12 border-border/60"
@@ -342,7 +358,10 @@ export default function LoginPage() {
           {/* Sign Up Link */}
           <div className="text-center text-sm text-muted-foreground mt-8">
             Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-foreground font-medium hover:underline">
+            <Link
+              href="/signup"
+              className="text-foreground font-medium hover:underline"
+            >
               Sign Up
             </Link>
           </div>

@@ -23,18 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Mic,
-  Play,
-  Pause,
-  RotateCcw,
   CheckCircle2,
-  XCircle,
   Sparkles,
   MessageSquare,
-  Clock,
   Target,
   Lightbulb,
   ChevronRight,
@@ -44,13 +37,13 @@ import { useToast } from "@/hooks/use-toast";
 import { LumaSpin } from "@/components/ui/luma-spin";
 import { AILoader } from "@/components/ui/ai-loader";
 import Link from "next/link";
-import {
-  generateInterviewQuestions,
-  evaluateInterviewAnswer,
-  type GenerateQuestionsOutput,
-  type EvaluateAnswerOutput,
-} from "@/ai/flows/interview-prep";
 import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useRateLimit";
+import { PremiumGate } from "@/components/premium-gate";
+import { postAiJson } from "@/lib/ai-api-client";
+import type { GenerateQuestionsOutput, EvaluateAnswerOutput } from "@/lib/ai-tool-contracts";
+import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
+import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
+import { getErrorMessage } from "@/lib/utils";
 
 type ExperienceLevel = "entry" | "mid" | "senior" | "executive";
 type QuestionType = "behavioral" | "technical" | "situational" | "all";
@@ -86,6 +79,14 @@ export default function InterviewPrepPage() {
   const [questionType, setQuestionType] = useState<QuestionType>("all");
   const [questionCount, setQuestionCount] = useState(5);
 
+  const career = useCareerContext();
+  usePrefill(career, (c) => {
+    setRole((v) => v || c.job?.title || c.title);
+    setCompany((v) => v || c.job?.company || "");
+    if (c.experienceYears >= 8) setExperienceLevel("senior");
+    else if (c.experienceYears > 0 && c.experienceYears < 2) setExperienceLevel("entry");
+  });
+
   // Practice state
   const [questions, setQuestions] = useState<Question[]>([]);
   const [generalTips, setGeneralTips] = useState<string[]>([]);
@@ -93,6 +94,8 @@ export default function InterviewPrepPage() {
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [showTips, setShowTips] = useState(false);
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
+
+  useDemoAutoRun(!!role.trim(), () => handleGenerateQuestions());
 
   const handleGenerateQuestions = async () => {
     // Check rate limit
@@ -115,22 +118,25 @@ export default function InterviewPrepPage() {
 
     setIsGenerating(true);
     try {
-      const result = await generateInterviewQuestions({
+      const result = await postAiJson<GenerateQuestionsOutput>("/api/ai/interview-prep", {
+        action: "generateQuestions",
+        payload: {
         role,
         company: company || undefined,
         experienceLevel,
         questionType,
         count: questionCount,
+        },
       });
 
       setQuestions(result.questions.map(q => ({ ...q })));
       setGeneralTips(result.generalTips);
       setStep("practice");
       toast({ title: "Questions generated!", description: `${result.questions.length} questions ready` });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Generation failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -147,12 +153,15 @@ export default function InterviewPrepPage() {
     setIsEvaluating(true);
     try {
       const currentQuestion = questions[currentQuestionIndex];
-      const evaluation = await evaluateInterviewAnswer({
-        question: currentQuestion.question,
-        questionType: currentQuestion.type,
-        userAnswer: currentAnswer,
-        role,
-        experienceLevel,
+      const evaluation = await postAiJson<EvaluateAnswerOutput>("/api/ai/interview-prep", {
+        action: "evaluateAnswer",
+        payload: {
+          question: currentQuestion.question,
+          questionType: currentQuestion.type,
+          userAnswer: currentAnswer,
+          role,
+          experienceLevel,
+        },
       });
 
       // Update question with answer and evaluation
@@ -170,10 +179,10 @@ export default function InterviewPrepPage() {
         title: `Score: ${evaluation.score}/100`,
         description: evaluation.score >= 70 ? "Great answer!" : "Room for improvement",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Evaluation failed",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error) || "Please try again",
         variant: "destructive",
       });
     } finally {
@@ -219,6 +228,7 @@ export default function InterviewPrepPage() {
   }
 
   return (
+    <PremiumGate featureName="Interview Prep Coach" requiredPlan="pro">
     <div className="container mx-auto py-8 max-w-4xl relative">
       {/* Loading Overlay */}
       {(isGenerating || isEvaluating) && (
@@ -530,5 +540,6 @@ export default function InterviewPrepPage() {
         </div>
       )}
     </div>
+    </PremiumGate>
   );
 }

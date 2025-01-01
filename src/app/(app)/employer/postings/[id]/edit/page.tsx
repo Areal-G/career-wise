@@ -104,7 +104,7 @@ export default function EditPostingPage() {
           });
           router.push("/employer/dashboard");
         }
-      } catch (error) {
+      } catch {
         toast({
           title: "Error",
           description: "Failed to fetch posting details.",
@@ -139,7 +139,7 @@ export default function EditPostingPage() {
         description: "Your job posting has been successfully updated.",
       });
       router.push("/employer/dashboard");
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "There was an error updating the posting.",

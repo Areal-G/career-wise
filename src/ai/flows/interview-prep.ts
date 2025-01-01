@@ -7,6 +7,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { requireServerAuthenticatedUser } from '@/lib/server-auth';
+import { enforceAiRateLimit } from '@/lib/ai-rate-limit';
+import { withRetry } from '@/ai/retry';
 
 // ============================================
 // GENERATE INTERVIEW QUESTIONS
@@ -53,7 +56,7 @@ Your interview questions are:
 For behavioral questions, use the STAR method framework.
 For technical questions, focus on practical application.
 For situational questions, create realistic scenarios.`,
-  prompt: `Generate {{count}} interview questions for a {{experienceLevel}}-level {{role}} position{{#if company}} at {{company}}{{/if}}.
+  prompt: `Generate {{count}} interview questions for a {{experienceLevel}}-level {{this.role}} position{{#if company}} at {{company}}{{/if}}.
 
 {{#if skills}}Focus on these skills: {{skills}}{{/if}}
 
@@ -67,32 +70,6 @@ For each question:
 
 Also provide 5 general interview tips specific to this role.`,
 });
-
-// Helper function to retry with exponential backoff
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      const status = error?.status || error?.statusCode;
-      if (status !== 503 && status !== 429 && attempt > 0) {
-        throw error;
-      }
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw lastError || new Error('Max retries exceeded');
-}
 
 const generateQuestionsFlow = ai.defineFlow(
   {
@@ -109,6 +86,12 @@ const generateQuestionsFlow = ai.defineFlow(
 export async function generateInterviewQuestions(
   input: GenerateQuestionsInput
 ): Promise<GenerateQuestionsOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'interviewPrep',
+  });
   return generateQuestionsFlow(input);
 }
 
@@ -158,7 +141,7 @@ Evaluate answers based on:
 For behavioral questions, analyze using the STAR method.`,
   prompt: `Evaluate this interview answer:
 
-Role: {{experienceLevel}}-level {{role}}
+Role: {{experienceLevel}}-level {{this.role}}
 Question Type: {{questionType}}
 
 Question: {{question}}
@@ -190,5 +173,11 @@ const evaluateAnswerFlow = ai.defineFlow(
 export async function evaluateInterviewAnswer(
   input: EvaluateAnswerInput
 ): Promise<EvaluateAnswerOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'interviewPrep',
+  });
   return evaluateAnswerFlow(input);
 }

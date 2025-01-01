@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { PostCard, Post, PostComment } from "@/components/ui/post-card";
+import { PostCard, Post } from "@/components/ui/post-card";
 import { CreatePost } from "@/components/ui/create-post";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -19,9 +19,9 @@ import {
   arrayRemove,
   increment,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
+import type { DocumentData } from "firebase/firestore";
 
 interface FeedProps {
   className?: string;
@@ -54,7 +54,7 @@ export function Feed({ className }: FeedProps) {
           content: data.content,
           imageUrl: data.imageUrl,
           likes: data.likes || [],
-          comments: (data.comments || []).map((c: any) => ({
+          comments: (data.comments || []).map((c: DocumentData) => ({
             ...c,
             createdAt: c.createdAt?.toDate?.() || new Date(),
           })),
@@ -83,7 +83,7 @@ export function Feed({ className }: FeedProps) {
   };
 
   // Upload image to Cloudinary via API
-  const uploadToCloudinary = async (imageDataUrl: string): Promise<string | null> => {
+  const uploadToCloudinary = useCallback(async (imageDataUrl: string): Promise<string | null> => {
     try {
       if (!user) return null;
 
@@ -115,7 +115,7 @@ export function Feed({ className }: FeedProps) {
       console.error("Error uploading to Cloudinary:", error);
       return null;
     }
-  };
+  }, [user]);
 
   // Create a new post
   const handleCreatePost = useCallback(async (content: string, imageDataUrl?: string) => {
@@ -136,7 +136,7 @@ export function Feed({ className }: FeedProps) {
     }
 
     // Build post data
-    const postData: Record<string, any> = {
+    const postData: DocumentData = {
       userId: user.uid,
       userName: userProfile.displayName || user.email?.split("@")[0] || "User",
       userPhoto: user.photoURL || userProfile.photoURL || null,
@@ -156,7 +156,7 @@ export function Feed({ className }: FeedProps) {
       title: "Post created!",
       description: "Your post has been shared with the community.",
     });
-  }, [user, userProfile, toast]);
+  }, [user, userProfile, toast, uploadToCloudinary]);
 
   // Like/unlike a post
   const handleLike = useCallback(async (postId: string) => {

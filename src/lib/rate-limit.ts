@@ -1,6 +1,6 @@
 /**
  * Rate Limiting Utility
- * In-memory rate limiter with support for user-based and IP-based limits
+ * Firestore-backed rate limiter (shared across instances) with an in-memory fallback
  */
 
 interface RateLimitConfig {
@@ -163,39 +163,74 @@ export const RATE_LIMITS = {
 import { NextRequest, NextResponse } from "next/server";
 
 /**
+ * Shared counter in Firestore so limits hold across server instances and
+ * restarts. Falls back to the in-memory store when the Admin SDK is absent.
+ */
+async function checkSharedRateLimit(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<{ success: boolean; remaining: number; resetTime: number }> {
+  const { adminDb } = await import("@/lib/firebase-admin");
+  if (!adminDb) return checkRateLimit(identifier, config);
+
+  const now = Date.now();
+  const windowStart = Math.floor(now / config.windowMs) * config.windowMs;
+  const resetTime = windowStart + config.windowMs;
+  const docId = `api_${identifier.replace(/[^a-zA-Z0-9:_-]/g, "_")}_${windowStart}`;
+  const ref = adminDb.collection("_internalRateLimits").doc(docId);
+
+  try {
+    return await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const count = snap.exists ? Number(snap.get("count") || 0) : 0;
+      if (count >= config.maxRequests) {
+        return { success: false, remaining: 0, resetTime };
+      }
+      tx.set(
+        ref,
+        { identifier, count: count + 1, resetTime, expiresAt: new Date(resetTime + 24 * 60 * 60 * 1000) },
+        { merge: true }
+      );
+      return { success: true, remaining: config.maxRequests - count - 1, resetTime };
+    });
+  } catch (error) {
+    console.warn("Shared rate limit unavailable, using in-memory fallback:", error);
+    return checkRateLimit(identifier, config);
+  }
+}
+
+/**
  * Rate limiting middleware for API routes
  * @returns null if rate limit check passes, or a NextResponse if rate limited
  */
-export function withRateLimit(
+export async function withRateLimit(
   request: NextRequest,
   config: RateLimitConfig,
   userId?: string
-): NextResponse | null {
+): Promise<NextResponse | null> {
   // Use user ID if available, otherwise use IP
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || 
-             request.headers.get("x-real-ip") || 
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+             request.headers.get("x-real-ip") ||
              "unknown";
   const identifier = userId ? `user:${userId}` : `ip:${ip}`;
-  
-  const result = checkRateLimit(identifier, config);
-  
+
+  const result = await checkSharedRateLimit(identifier, config);
+
   if (!result.success) {
+    const retryAfter = Math.max(1, Math.ceil((result.resetTime - Date.now()) / 1000));
     return NextResponse.json(
-      { 
-        error: "Too many requests. Please try again later.",
-        retryAfter: Math.ceil((result.resetTime - Date.now()) / 1000),
-      },
-      { 
+      { error: "Too many requests. Please try again later.", retryAfter },
+      {
         status: 429,
         headers: {
-          "Retry-After": String(Math.ceil((result.resetTime - Date.now()) / 1000)),
+          "Retry-After": String(retryAfter),
           "X-RateLimit-Remaining": "0",
           "X-RateLimit-Reset": String(result.resetTime),
         },
       }
     );
   }
-  
+
   return null; // Rate limit check passed
 }
 

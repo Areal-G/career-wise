@@ -10,10 +10,10 @@ import {
   deleteDoc,
   onSnapshot,
 } from 'firebase/firestore';
+import type { DocumentData } from "firebase/firestore";
 
-interface Opportunity {
+export interface Opportunity extends DocumentData {
   id: string;
-  [key: string]: any;
 }
 
 interface SavedOpportunitiesContextType {

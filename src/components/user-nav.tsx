@@ -6,7 +6,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { User, Settings, LogOut, Crown, Sparkles } from 'lucide-react';
+import { User, Settings, LogOut } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -34,15 +34,6 @@ const AVATAR_GRADIENTS = [
   'bg-gradient-to-br from-slate-500 via-gray-600 to-zinc-700',
 ];
 
-// Plan display info
-const PLAN_INFO: Record<string, { label: string; color: string; icon: typeof Crown }> = {
-  free: { label: 'Free', color: 'text-muted-foreground', icon: User },
-  pro: { label: 'Pro', color: 'text-blue-500', icon: Sparkles },
-  premium: { label: 'Premium', color: 'text-amber-500', icon: Crown },
-  starter: { label: 'Starter', color: 'text-emerald-500', icon: Sparkles },
-  business: { label: 'Business', color: 'text-purple-500', icon: Crown },
-};
-
 // Get consistent gradient based on user email/id
 const getGradient = (identifier: string) => {
   if (!identifier) return AVATAR_GRADIENTS[0];
@@ -58,25 +49,11 @@ export function UserNav() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const getInitials = (name: string) => {
-    if (!name) return '';
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      toast({
-        title: 'Logged Out',
-        description: 'You have been successfully logged out.',
-      });
       router.push('/login');
-    } catch (error) {
+    } catch {
       toast({
         title: 'Logout Failed',
         description: 'An error occurred while logging out.',
@@ -100,12 +77,9 @@ export function UserNav() {
   }
 
   const gradientClass = getGradient(user.uid || user.email || "");
-  const hasPhoto = !!user.photoURL;
+  const photoURL = user.photoURL || (userProfile?.photoURL as string | undefined) || "";
+  const hasPhoto = !!photoURL;
   
-  // Get user's current plan from profile or default to free
-  const currentPlan = userProfile?.plan || 'free';
-  const planInfo = PLAN_INFO[currentPlan] || PLAN_INFO.free;
-  const PlanIcon = planInfo.icon;
 
   return (
     <div className="flex items-center gap-2">
@@ -118,22 +92,19 @@ export function UserNav() {
             <div className="me-1 flex aspect-square h-full p-1">
               <Avatar className="h-full w-full">
                 {hasPhoto ? (
-                  <AvatarImage src={user.photoURL || ''} alt={`@${user.displayName}`} />
+                  <AvatarImage src={photoURL} alt={`@${user.displayName}`} />
                 ) : null}
                 <AvatarFallback className={gradientClass} />
               </Avatar>
             </div>
-            <span className={`flex items-center gap-1 pr-3 ${planInfo.color}`}>
-              {planInfo.label}
-            </span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64" align="end">
+        <PopoverContent className="w-64 rounded-3xl overflow-hidden" align="end">
           <PopoverHeader>
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10">
                 {hasPhoto ? (
-                  <AvatarImage src={user.photoURL || ''} alt={`@${user.displayName}`} />
+                  <AvatarImage src={photoURL} alt={`@${user.displayName}`} />
                 ) : null}
                 <AvatarFallback className={gradientClass} />
               </Avatar>
@@ -150,12 +121,6 @@ export function UserNav() {
                 View Profile
               </Link>
             </Button>
-            <Button variant="ghost" className="w-full justify-start" size="sm" asChild>
-              <Link href="/pricing">
-                <Crown className="mr-2 h-4 w-4 text-amber-500" />
-                {currentPlan === 'free' ? 'Upgrade Plan' : 'Manage Plan'}
-              </Link>
-            </Button>
             {role === 'employer' && (
               <Button variant="ghost" className="w-full justify-start" size="sm" asChild>
                 <Link href="/employer/settings">
@@ -168,7 +133,7 @@ export function UserNav() {
           <PopoverFooter>
             <Button 
               variant="outline" 
-              className="w-full bg-transparent" 
+              className="w-full bg-transparent rounded-full" 
               size="sm"
               onClick={handleLogout}
             >
@@ -181,4 +146,3 @@ export function UserNav() {
     </div>
   );
 }
-

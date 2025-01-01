@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getErrorMessage } from "@/lib/utils";
 
 export interface AuthenticatedUser {
   uid: string;
@@ -26,38 +27,32 @@ export async function verifyAuthToken(
 ): Promise<AuthResult> {
   try {
     const authHeader = request.headers.get("authorization");
-    
-    if (!authHeader) {
-      return {
-        authenticated: false,
-        error: "No authorization header",
-      };
-    }
-    
+    const cookieToken = request.cookies.get("__session")?.value;
+
     // Extract token from "Bearer <token>"
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : authHeader;
-    
+    const token = authHeader
+      ? authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7)
+        : authHeader
+      : cookieToken;
+
     if (!token) {
       return {
         authenticated: false,
         error: "No token provided",
       };
     }
-    
+
     // Verify with Firebase Admin
     if (!adminAuth) {
-      console.warn("Firebase Admin not initialized, skipping auth verification");
-      // In development without admin credentials, allow pass-through
       return {
-        authenticated: true,
-        user: { uid: "dev-user" },
+        authenticated: false,
+        error: "Authentication service unavailable",
       };
     }
-    
+
     const decodedToken = await adminAuth.verifyIdToken(token);
-    
+
     return {
       authenticated: true,
       user: {
@@ -66,13 +61,48 @@ export async function verifyAuthToken(
         emailVerified: decodedToken.email_verified,
       },
     };
-  } catch (error: any) {
-    console.error("Token verification failed:", error.message);
+  } catch (error) {
+    console.error("Token verification failed:", getErrorMessage(error));
     return {
       authenticated: false,
       error: "Invalid or expired token",
     };
   }
+}
+
+export async function getUserRole(uid: string): Promise<string | null> {
+  if (!adminDb) {
+    return null;
+  }
+
+  const userDoc = await adminDb.collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    return null;
+  }
+
+  const userData = userDoc.data() ?? {};
+  return typeof userData.role === "string" ? userData.role : null;
+}
+
+export async function requireRole(
+  request: NextRequest,
+  roles: string | string[]
+): Promise<{ response: NextResponse | null; user?: AuthenticatedUser; role?: string }> {
+  const { response, user } = await requireAuth(request);
+  if (response || !user) {
+    return { response };
+  }
+
+  const allowedRoles = Array.isArray(roles) ? roles : [roles];
+  const role = await getUserRole(user.uid);
+
+  if (!role || !allowedRoles.includes(role)) {
+    return {
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return { response: null, user, role };
 }
 
 /**
@@ -99,10 +129,10 @@ export async function requireAuth(
 /**
  * Validate request body against a schema
  */
-export function validateBody<T extends Record<string, any>>(
+export function validateBody<T extends object>(
   body: T,
   requiredFields: (keyof T)[],
-  fieldValidators?: Partial<Record<keyof T, (value: any) => boolean>>
+  fieldValidators?: { [K in keyof T]?: (value: NonNullable<T[K]>) => boolean }
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
@@ -115,9 +145,11 @@ export function validateBody<T extends Record<string, any>>(
   
   // Run custom validators
   if (fieldValidators) {
-    for (const [field, validator] of Object.entries(fieldValidators)) {
-      if (body[field] !== undefined && validator && !validator(body[field])) {
-        errors.push(`Invalid value for field: ${field}`);
+    for (const field of Object.keys(fieldValidators) as (keyof T)[]) {
+      const validator = fieldValidators[field];
+      const value = body[field];
+      if (value !== undefined && value !== null && validator && !validator(value as NonNullable<T[typeof field]>)) {
+        errors.push(`Invalid value for field: ${String(field)}`);
       }
     }
   }
@@ -135,16 +167,16 @@ export const validators = {
   isEmail: (value: string): boolean => 
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
   
-  isNonEmptyString: (value: any): boolean => 
+  isNonEmptyString: (value: unknown): boolean => 
     typeof value === "string" && value.trim().length > 0,
   
-  isPositiveNumber: (value: any): boolean => 
+  isPositiveNumber: (value: unknown): boolean => 
     typeof value === "number" && value > 0,
   
-  isArray: (value: any): boolean => 
+  isArray: (value: unknown): boolean => 
     Array.isArray(value),
   
-  isNonEmptyArray: (value: any): boolean => 
+  isNonEmptyArray: (value: unknown): boolean => 
     Array.isArray(value) && value.length > 0,
   
   maxLength: (max: number) => (value: string): boolean => 

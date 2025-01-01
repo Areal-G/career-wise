@@ -19,6 +19,7 @@ import {
   increment,
   runTransaction,
 } from "firebase/firestore";
+import { requireServerRole } from "@/lib/server-auth";
 
 // Lazy initialization to avoid client-side errors
 let resend: Resend | null = null;
@@ -32,6 +33,7 @@ function getResend(): Resend {
 export async function sendApplicationStatusEmail(
   input: SendApplicationStatusEmailInput
 ): Promise<void> {
+  await requireServerRole(["employer", "admin"]);
   return sendApplicationStatusEmailFlow(input);
 }
 
@@ -78,22 +80,17 @@ const sendApplicationStatusEmailFlow = ai.defineFlow(
       throw new Error("Email service is not configured.");
     }
 
-    try {
-      const { data, error } = await getResend().emails.send({
-        from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
-        to: [to],
-        subject: subject,
-        html: body,
-      });
+    const { error } = await getResend().emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
+      to: [to],
+      subject: subject,
+      html: body,
+    });
 
-      if (error) {
-        console.error("Resend error:", error);
-        return;
-      }
-
-      console.log("Application status email sent successfully:", data?.id);
-    } catch (error) {
-      console.error("Error sending application status email:", error);
+    if (error) {
+      console.error("Resend error:", error);
+      return;
     }
+
   }
 );

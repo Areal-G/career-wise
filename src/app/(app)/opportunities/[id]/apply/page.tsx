@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Bot } from 'lucide-react';
 import { enhanceText } from '@/ai/flows/enhance-text';
+import { getErrorMessage } from "@/lib/utils";
 
 const applicationSchema = z.object({
   coverLetter: z.string().min(10, 'Please provide a brief cover letter.'),
@@ -57,15 +58,20 @@ export default function ApplyPage() {
 
    useEffect(() => {
     if (userProfile) {
+      // A cover letter drafted on the "Prepare for this job" page carries over.
+      let drafted = '';
+      try {
+        drafted = sessionStorage.getItem(`prep-cover-letter:${id}`) || '';
+      } catch {}
       form.reset({
-        coverLetter: form.getValues('coverLetter') || '',
+        coverLetter: form.getValues('coverLetter') || drafted,
         employmentHistory: userProfile.employmentHistory || '',
         references: userProfile.references || '',
         portfolioLink: userProfile.portfolioLink || '',
         linkedinLink: userProfile.linkedinLink || '',
       });
     }
-  }, [userProfile, form.getValues, form]);
+  }, [userProfile, form.getValues, form, id]);
 
 
   useEffect(() => {
@@ -81,7 +87,7 @@ export default function ApplyPage() {
           toast({ title: "Error", description: "Opportunity not found.", variant: "destructive" });
           router.push('/opportunities');
         }
-      } catch (error) {
+      } catch {
         toast({ title: "Error", description: "Failed to fetch opportunity details.", variant: "destructive" });
       } finally {
         setLoading(false);
@@ -131,10 +137,10 @@ export default function ApplyPage() {
         description: 'Your application has been sent successfully.',
       });
       router.push(`/opportunities/${id}`);
-    } catch (error: any) {
+    } catch (error) {
        toast({
         title: 'Error',
-        description: `There was an error submitting your application: ${error.message}`,
+        description: `There was an error submitting your application: ${getErrorMessage(error)}`,
         variant: 'destructive',
       });
     }

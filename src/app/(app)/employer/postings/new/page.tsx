@@ -6,7 +6,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { useTransition } from "react";
 
@@ -158,7 +158,7 @@ export default function NewPostingPage() {
                 <p>The Career Wise Team</p>
               `;
 
-            const emailSent = await sendApplicationStatusEmailDirect(
+            await sendApplicationStatusEmailDirect(
               candidate.email,
               subject,
               body
@@ -185,7 +185,7 @@ export default function NewPostingPage() {
       }
 
       router.push("/employer/dashboard");
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "There was an error creating the posting.",

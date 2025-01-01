@@ -8,7 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { updateProfile } from "firebase/auth";
-import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { generateProfileSummary } from "@/ai/flows/generate-profile-summary";
 import { enhanceText } from "@/ai/flows/enhance-text";
 import { parseResume } from "@/ai/flows/parse-resume";
-import { ComprehensiveATSScorer } from "@/lib/comprehensiveAtsScorer";
+import { ComprehensiveATSScorer, type DetailedScore } from "@/lib/comprehensiveAtsScorer";
 import { Bot, Loader2, Edit, Upload, Plus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -48,6 +47,7 @@ import {
 import { SkillsInput } from "@/components/skills-input";
 import { AvatarUploader } from "@/components/ui/avatar-uploader";
 import { LumaSpin } from "@/components/ui/luma-spin";
+import { toPublicProfile } from "@/lib/public-profile";
 
 const employabilityOptions = [
   { value: "open_to_work", label: "Open to Work" },
@@ -66,6 +66,9 @@ const profileSchema = z.object({
   supportEmail: z.string().email().optional().or(z.literal("")),
   portfolioLink: z.string().url().optional().or(z.literal("")),
   linkedinLink: z.string().url().optional().or(z.literal("")),
+  githubLink: z.string().url().optional().or(z.literal("")),
+  twitterLink: z.string().url().optional().or(z.literal("")),
+  websiteLink: z.string().url().optional().or(z.literal("")),
   employability: z.string().optional(),
   education: z.string().min(1, "Education is required."),
   skills: z.string().min(1, "Skills are required."),
@@ -88,9 +91,9 @@ export default function ProfilePage() {
   const [atsConfidence, setAtsConfidence] = useState<
     "High" | "Medium" | "Low" | null
   >(null);
-  const [atsCategoryScores, setAtsCategoryScores] = useState<any>(null);
-  const [atsMatched, setAtsMatched] = useState<any>(null);
-  const [atsMissing, setAtsMissing] = useState<any>(null);
+  const [atsCategoryScores, setAtsCategoryScores] = useState<DetailedScore['categoryScores'] | null>(null);
+  const [atsMatched, setAtsMatched] = useState<DetailedScore['matched'] | null>(null);
+  const [atsMissing, setAtsMissing] = useState<DetailedScore['missing'] | null>(null);
 
   // Edit state management
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -159,10 +162,10 @@ export default function ProfilePage() {
     setEducationEntries(educationEntries.filter((entry) => entry.id !== id));
   };
 
-  const updateEducationEntry = (
+  const updateEducationEntry = <K extends keyof EducationEntry>(
     id: string,
-    field: keyof EducationEntry,
-    value: any
+    field: K,
+    value: EducationEntry[K]
   ) => {
     setEducationEntries(
       educationEntries.map((entry) =>
@@ -189,10 +192,10 @@ export default function ProfilePage() {
     setEmploymentEntries(employmentEntries.filter((entry) => entry.id !== id));
   };
 
-  const updateEmploymentEntry = (
+  const updateEmploymentEntry = <K extends keyof EmploymentEntry>(
     id: string,
-    field: keyof EmploymentEntry,
-    value: any
+    field: K,
+    value: EmploymentEntry[K]
   ) => {
     setEmploymentEntries(
       employmentEntries.map((entry) =>
@@ -218,10 +221,10 @@ export default function ProfilePage() {
     setReferenceEntries(referenceEntries.filter((entry) => entry.id !== id));
   };
 
-  const updateReferenceEntry = (
+  const updateReferenceEntry = <K extends keyof ReferenceEntry>(
     id: string,
-    field: keyof ReferenceEntry,
-    value: any
+    field: K,
+    value: ReferenceEntry[K]
   ) => {
     setReferenceEntries(
       referenceEntries.map((entry) =>
@@ -380,7 +383,7 @@ export default function ProfilePage() {
     setAtsCategoryScores(null);
     setAtsMatched(null);
     setAtsMissing(null);
-    let resumeText = atsResumeText;
+    const resumeText = atsResumeText;
     // If file uploaded, parse it
     if (atsResumeFile) {
       try {
@@ -414,7 +417,7 @@ export default function ProfilePage() {
         };
         reader.readAsText(atsResumeFile);
         return;
-      } catch (err) {
+      } catch {
         setAtsLoading(false);
         setAtsSuggestions("Could not read resume file.");
         return;
@@ -537,8 +540,6 @@ export default function ProfilePage() {
 
   const [isPending, startTransition] = useTransition();
   const [summary, setSummary] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const resumeInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileFormValues>({
@@ -557,6 +558,9 @@ export default function ProfilePage() {
       references: "",
       portfolioLink: "",
       linkedinLink: "",
+      githubLink: "",
+      twitterLink: "",
+      websiteLink: "",
       employability: "",
     },
   });
@@ -593,6 +597,9 @@ export default function ProfilePage() {
         references,
         portfolioLink,
         linkedinLink,
+        githubLink: userProfile.githubLink || "",
+        twitterLink: userProfile.twitterLink || "",
+        websiteLink: userProfile.websiteLink || "",
         employability,
       });
     }
@@ -625,6 +632,16 @@ export default function ProfilePage() {
       };
 
       await setDoc(doc(db, "users", user.uid), profileData, { merge: true });
+      await setDoc(
+        doc(db, "publicProfiles", user.uid),
+        toPublicProfile({
+          uid: user.uid,
+          ...profileData,
+          photoURL: user.photoURL,
+          role: "employee",
+        }),
+        { merge: true }
+      );
 
       toast({
         title: "Profile Updated",
@@ -634,7 +651,7 @@ export default function ProfilePage() {
       // Close edit modes after successful save
       setIsEditingPersonal(false);
       setIsEditingProfessional(false);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "There was an error updating your profile.",
@@ -677,51 +694,6 @@ export default function ProfilePage() {
         description: "Your AI-powered profile summary is ready.",
       });
     });
-  };
-
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("userId", user.uid);
-
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { url } = await response.json();
-
-      await updateProfile(user, { photoURL: url });
-      await setDoc(
-        doc(db, "users", user.uid),
-        { photoURL: url },
-        { merge: true }
-      );
-
-      toast({
-        title: "Profile Picture Updated",
-        description: "Your new picture has been saved.",
-      });
-    } catch (error) {
-      toast({
-        title: "Upload Error",
-        description: "Failed to upload profile picture.",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleEnhanceText = (
@@ -887,8 +859,7 @@ export default function ProfilePage() {
                 <AvatarUploader
                   onUpload={async (file) => {
                     if (!user) return { success: false };
-                    
-                    setUploading(true);
+
                     const formData = new FormData();
                     formData.append("file", file);
                     formData.append("userId", user.uid);
@@ -914,15 +885,13 @@ export default function ProfilePage() {
                         description: "Your new picture has been saved.",
                       });
                       return { success: true };
-                    } catch (error) {
+                    } catch {
                       toast({
                         title: "Upload Error",
                         description: "Failed to upload profile picture.",
                         variant: "destructive",
                       });
                       return { success: false };
-                    } finally {
-                      setUploading(false);
                     }
                   }}
                 >
@@ -1085,6 +1054,54 @@ export default function ProfilePage() {
                           <FormControl>
                             <Input
                               placeholder="https://linkedin.com/in/your-profile"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="githubLink"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GitHub (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://github.com/your-username"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="twitterLink"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Twitter / X (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://twitter.com/your-handle"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="websiteLink"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Personal Website (Optional)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://your-website.com"
                               {...field}
                             />
                           </FormControl>
@@ -1349,7 +1366,7 @@ export default function ProfilePage() {
 
                       {educationEntries.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                          No education entries added yet. Click "Add Education"
+                          No education entries added yet. Click &quot;Add Education&quot;
                           to get started.
                         </p>
                       )}
@@ -1521,8 +1538,8 @@ export default function ProfilePage() {
 
                       {employmentEntries.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                          No employment entries added yet. Click "Add
-                          Employment" to get started.
+                          No employment entries added yet. Click &quot;Add
+                          Employment&quot; to get started.
                         </p>
                       )}
                     </div>
@@ -1797,8 +1814,8 @@ export default function ProfilePage() {
 
                       {employmentEntries.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                          No employment entries added yet. Click "Add
-                          Employment" to get started.
+                          No employment entries added yet. Click &quot;Add
+                          Employment&quot; to get started.
                         </p>
                       )}
                     </div>
@@ -1946,7 +1963,7 @@ export default function ProfilePage() {
 
                       {referenceEntries.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                          No references added yet. Click "Add Reference" to get
+                          No references added yet. Click &quot;Add Reference&quot; to get
                           started.
                         </p>
                       )}
@@ -2142,11 +2159,7 @@ export default function ProfilePage() {
                     <div>
                       <b>Suggestions:</b>
                     </div>
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: atsSuggestions.replace(/\n/g, "<br/>"),
-                      }}
-                    />
+                    <div className="whitespace-pre-line">{atsSuggestions}</div>
                   </div>
                 )}
               </div>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Chat } from "@/hooks/useChatList";
 
 function ChatRoomContent() {
   const params = useParams();
@@ -39,7 +40,7 @@ function ChatRoomContent() {
     try {
       const chatDoc = await getDoc(doc(db, "chats", id));
       if (chatDoc.exists()) {
-        return { id: chatDoc.id, ...chatDoc.data() };
+        return { id: chatDoc.id, ...chatDoc.data() } as Chat;
       }
     } catch (error) {
       console.error("Error loading chat:", error);
@@ -64,7 +65,7 @@ function ChatRoomContent() {
       setLoadingChat(true);
       const chat = await loadChatDirectly(chatId);
       if (chat) {
-        setActiveChat(chat as any);
+        setActiveChat(chat);
         activatedRef.current = true;
       }
       setLoadingChat(false);

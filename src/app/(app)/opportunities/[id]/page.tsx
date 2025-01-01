@@ -5,7 +5,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react';
 
-import { ComprehensiveATSScorer } from '@/lib/comprehensiveAtsScorer';
+import { ComprehensiveATSScorer, type DetailedScore } from '@/lib/comprehensiveAtsScorer';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { parseResume } from '@/ai/flows/parse-resume';
@@ -18,10 +18,9 @@ import { analyzeOpportunityDescription } from '@/ai/flows/analyze-opportunity-de
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Bot, Heart, Loader2, Building, Briefcase, BookOpen, Star, FileText, Clock, Plane, Info, Award } from 'lucide-react';
+import { Sparkles, ArrowLeft, Bot, Heart, Loader2, Building, Briefcase, BookOpen, Star, FileText, Clock, Plane, Info, Award } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useSavedOpportunities } from '@/context/SavedOpportunitiesContext';
@@ -52,7 +51,7 @@ interface Opportunity {
   legalStatement: string;
   workingHours?: string;
   travelRequirements?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 type Analysis = {
@@ -68,9 +67,9 @@ export default function OpportunityDetailPage() {
   const [atsSuggestions, setAtsSuggestions] = useState<string>('');
   const [atsScore, setAtsScore] = useState<number|null>(null);
   const [atsConfidence, setAtsConfidence] = useState<'High'|'Medium'|'Low'|null>(null);
-  const [atsCategoryScores, setAtsCategoryScores] = useState<any>(null);
-  const [atsMatched, setAtsMatched] = useState<any>(null);
-  const [atsMissing, setAtsMissing] = useState<any>(null);
+  const [atsCategoryScores, setAtsCategoryScores] = useState<DetailedScore['categoryScores'] | null>(null);
+  const [atsMatched, setAtsMatched] = useState<DetailedScore['matched'] | null>(null);
+  const [atsMissing, setAtsMissing] = useState<DetailedScore['missing'] | null>(null);
   const [atsLoading, setAtsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +84,7 @@ export default function OpportunityDetailPage() {
     setAtsCategoryScores(null);
     setAtsMatched(null);
     setAtsMissing(null);
-    let resumeText = atsResumeText;
+    const resumeText = atsResumeText;
     if (atsResumeFile) {
       try {
         const reader = new FileReader();
@@ -102,7 +101,7 @@ export default function OpportunityDetailPage() {
         };
         reader.readAsText(atsResumeFile);
         return;
-      } catch (err) {
+      } catch {
         setAtsLoading(false);
         setAtsSuggestions('Could not read resume file.');
         return;
@@ -141,7 +140,7 @@ export default function OpportunityDetailPage() {
   const { saved, toggleSave } = useSavedOpportunities();
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const [hasApplied, setHasApplied] = useState(false);
 
 
@@ -172,7 +171,11 @@ export default function OpportunityDetailPage() {
             where("opportunityId", "==", id)
         );
         const querySnapshot = await getDocs(q);
-        setHasApplied(!querySnapshot.empty);
+        setHasApplied(
+          querySnapshot.docs.some(
+            (docSnap) => (docSnap.data().status || "").toLowerCase() !== "withdrawn"
+          )
+        );
     }
 
     const fetchOpportunity = async () => {
@@ -349,6 +352,24 @@ export default function OpportunityDetailPage() {
             </Card>
         </div>
         <div className="md:col-span-1 space-y-8">
+            {role !== "employer" && (
+              <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-accent/50 p-6">
+                <div className="relative">
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-medium text-primary">
+                    <Sparkles className="h-3.5 w-3.5" /> One click, four tools
+                  </div>
+                  <h3 className="text-xl font-semibold tracking-tight">Prepare for this job</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Match score, skill gaps, a tailored cover letter and likely interview questions — built from your profile.
+                  </p>
+                  <Button asChild size="lg" className="mt-4 w-full rounded-full">
+                    <Link href={`/opportunities/${opportunity.id}/prepare`}>
+                      <Sparkles className="mr-2 h-4 w-4" /> Build my prep pack
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
             <Card>
                 <CardHeader>
                     <CardTitle>AI Opportunity Analysis</CardTitle>
@@ -470,7 +491,7 @@ export default function OpportunityDetailPage() {
                         {atsSuggestions && (
                             <div className="text-left text-sm text-muted-foreground mt-2 whitespace-pre-line">
                                 <div><b>Suggestions:</b></div>
-                                <div dangerouslySetInnerHTML={{ __html: atsSuggestions.replace(/\n/g, '<br/>') }} />
+                                <div className="whitespace-pre-line">{atsSuggestions}</div>
                             </div>
                         )}
                     </div>

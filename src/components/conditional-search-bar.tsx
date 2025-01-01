@@ -5,10 +5,10 @@ import { useAuth } from "@/context/AuthContext";
 import { SearchBar } from "@/components/search-bar";
 
 export function ConditionalSearchBar() {
-  const { role, loading } = useAuth();
+  const { loading } = useAuth();
 
-  // Don't render anything during loading or for employers
-  if (loading || role === "employer") {
+  // Don't render anything during loading
+  if (loading) {
     return null;
   }
 

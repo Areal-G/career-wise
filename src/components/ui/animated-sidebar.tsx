@@ -1,7 +1,8 @@
 "use client";
 import { cn } from "@/lib/utils";
 import Link, { LinkProps } from "next/link";
-import React, { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
@@ -15,6 +16,9 @@ interface SidebarContextProps {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   animate: boolean;
+  /** The phone drawer has its own state, so a desktop "keep expanded" rule never opens it. */
+  mobileOpen: boolean;
+  setMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const SidebarContext = createContext<SidebarContextProps | undefined>(
@@ -41,12 +45,13 @@ export const SidebarProvider = ({
   animate?: boolean;
 }) => {
   const [openState, setOpenState] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
 
   return (
-    <SidebarContext.Provider value={{ open, setOpen, animate: animate }}>
+    <SidebarContext.Provider value={{ open, setOpen, animate: animate, mobileOpen, setMobileOpen }}>
       {children}
     </SidebarContext.Provider>
   );
@@ -88,7 +93,7 @@ export const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        "h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-800 flex-shrink-0",
+        "h-full px-4 py-4 hidden md:flex md:flex-col bg-sidebar flex-shrink-0",
         className
       )}
       animate={{
@@ -103,53 +108,62 @@ export const DesktopSidebar = ({
   );
 };
 
+/** Hamburger for phones; place it in the page header. */
+export const MobileSidebarTrigger = ({ className }: { className?: string }) => {
+  const { setMobileOpen } = useSidebar();
+  return (
+    <button
+      type="button"
+      aria-label="Open menu"
+      className={cn("rounded-full p-2 text-sidebar-foreground hover:bg-muted md:hidden", className)}
+      onClick={() => setMobileOpen(true)}
+    >
+      <Menu className="h-5 w-5" />
+    </button>
+  );
+};
+
+/** Full-screen navigation drawer for phones. Opened by MobileSidebarTrigger. */
 export const MobileSidebar = ({
   className,
   children,
-  ...props
 }: React.ComponentProps<"div">) => {
-  const { open, setOpen } = useSidebar();
+  const ctx = useSidebar();
+  const { mobileOpen, setMobileOpen } = ctx;
+  const close = () => setMobileOpen(false);
+  const pathname = usePathname();
+  // Close after navigating to another page.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, setMobileOpen]);
   return (
-    <>
-      <div
-        className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full"
-        )}
-        {...props}
-      >
-        <div className="flex justify-end z-20 w-full">
-          <Menu
-            className="text-neutral-800 dark:text-neutral-200"
-            onClick={() => setOpen(!open)}
-          />
-        </div>
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className={cn(
-                "fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between",
-                className
-              )}
-            >
-              <div
-                className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200"
-                onClick={() => setOpen(!open)}
-              >
-                <X />
-              </div>
-              {children}
-            </motion.div>
+    <AnimatePresence>
+      {mobileOpen && (
+        <motion.div
+          initial={{ x: "-100%", opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: "-100%", opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className={cn(
+            "fixed inset-0 z-[100] flex h-full w-full flex-col justify-between bg-background p-10 md:hidden",
+            className
           )}
-        </AnimatePresence>
-      </div>
-    </>
+        >
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="absolute right-8 top-8 z-50 rounded-full p-2 text-sidebar-foreground hover:bg-muted"
+            onClick={close}
+          >
+            <X />
+          </button>
+          {/* Labels are always shown inside the drawer. */}
+          <SidebarContext.Provider value={{ ...ctx, open: true, animate: false }}>
+            {children}
+          </SidebarContext.Provider>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -178,7 +192,7 @@ export const SidebarLink = ({
           display: animate ? (open ? "inline-block" : "none") : "inline-block",
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
-        className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+        className="text-sidebar-foreground/80 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
       >
         {link.label}
       </motion.span>

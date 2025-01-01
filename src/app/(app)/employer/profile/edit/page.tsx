@@ -29,8 +29,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Edit, Eye, Save, X } from "lucide-react";
+import { Loader2, Edit, Save, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toPublicProfile } from "@/lib/public-profile";
 
 const profileSchema = z.object({
   companyName: z.string().min(1, "Company name is required."),
@@ -92,13 +93,25 @@ export default function EmployerProfilePage() {
         },
         { merge: true }
       );
+      await setDoc(
+        doc(db, "publicProfiles", user.uid),
+        toPublicProfile({
+          uid: user.uid,
+          ...userProfile,
+          ...values,
+          displayName: values.companyName,
+          photoURL: user.photoURL,
+          role: "employer",
+        }),
+        { merge: true }
+      );
 
       setIsEditMode(false); // Exit edit mode after successful save
       toast({
         title: "Profile Updated",
         description: "Your company profile has been saved successfully.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "There was an error updating your profile.",
@@ -149,12 +162,23 @@ export default function EmployerProfilePage() {
         { photoURL: url },
         { merge: true }
       );
+      await setDoc(
+        doc(db, "publicProfiles", user.uid),
+        toPublicProfile({
+          uid: user.uid,
+          ...userProfile,
+          displayName: user.displayName || userProfile?.displayName,
+          photoURL: url,
+          role: "employer",
+        }),
+        { merge: true }
+      );
 
       toast({
         title: "Profile Picture Updated",
         description: "Your new picture has been saved.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Upload Error",
         description: "Failed to upload profile picture.",
@@ -185,7 +209,7 @@ export default function EmployerProfilePage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Company Profile</h1>
         <p className="text-muted-foreground">
-          Manage your company's public information.
+          Manage your company&apos;s public information.
         </p>
       </div>
 

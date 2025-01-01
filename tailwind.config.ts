@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -10,9 +11,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ["Inter", "sans-serif"],
-        headline: ["Inter", "sans-serif"],
-        code: ['"Source Code Pro"', "monospace"],
+        body: ["var(--font-inter)", "sans-serif"],
+        headline: ["var(--font-inter)", "sans-serif"],
+        code: ["var(--font-source-code-pro)", "monospace"],
       },
       colors: {
         background: "hsl(var(--background))",
@@ -24,6 +25,12 @@ export default {
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
+        },
+        brand: {
+          crema: "hsl(var(--brand-crema))",
+          sage: "hsl(var(--brand-sage))",
+          caramel: "hsl(var(--brand-caramel))",
+          mocha: "hsl(var(--brand-mocha))",
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -106,5 +113,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindAnimate],
 } satisfies Config;

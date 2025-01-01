@@ -7,6 +7,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { requireServerAuthenticatedUser } from '@/lib/server-auth';
+import { enforceAiRateLimit } from '@/lib/ai-rate-limit';
+import { withRetry } from '@/ai/retry';
 
 const ScoreJobMatchInputSchema = z.object({
   userSkills: z.array(z.string()),
@@ -95,28 +98,6 @@ Provide:
 5. Key points for cover letter`,
 });
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      const status = error?.status || error?.statusCode;
-      if (status !== 503 && status !== 429 && attempt > 0) throw error;
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw lastError || new Error('Max retries exceeded');
-}
-
 const scoreJobMatchFlow = ai.defineFlow(
   {
     name: 'scoreJobMatchFlow',
@@ -132,5 +113,11 @@ const scoreJobMatchFlow = ai.defineFlow(
 export async function scoreJobMatch(
   input: ScoreJobMatchInput
 ): Promise<ScoreJobMatchOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'jobMatch',
+  });
   return scoreJobMatchFlow(input);
 }

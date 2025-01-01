@@ -14,7 +14,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader2, User, UserPlus, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface UserData {
   uid: string;
@@ -65,7 +64,7 @@ export function FollowersModal({
 
       for (const uid of userIds) {
         try {
-          const userDoc = await getDoc(doc(db, "users", uid));
+          const userDoc = await getDoc(doc(db, "publicProfiles", uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
             userData.push({

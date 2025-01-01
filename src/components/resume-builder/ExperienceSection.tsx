@@ -190,7 +190,7 @@ export function ExperienceSection({ data, onChange, onAIEnhance }: ExperienceSec
                     Add Bullet
                   </Button>
                 </div>
-                {entry.bullets.map((bullet, bulletIndex) => (
+                {entry.bullets.map((bullet) => (
                   <div key={bullet.id} className="flex gap-2">
                     <span className="text-muted-foreground mt-2">•</span>
                     <Textarea

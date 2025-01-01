@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Loader2, Briefcase } from "lucide-react";
+import { Loader2, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { format } from 'date-fns';
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
@@ -117,7 +117,7 @@ export default function AppliedPage() {
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-20">
                <Briefcase className="h-12 w-12 mb-4" />
                <h2 className="text-xl font-semibold">No Applications Yet</h2>
-              <p>You haven't applied to any opportunities yet. Start browsing to find your next role!</p>
+              <p>You haven&apos;t applied to any opportunities yet. Start browsing to find your next role!</p>
                <Button asChild variant="link" className="mt-2">
                     <Link href="/opportunities">Browse Opportunities</Link>
                 </Button>

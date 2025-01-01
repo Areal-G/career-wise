@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe, PLAN_DETAILS } from "@/lib/stripe";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { requireAuth, validateBody, validators, validationErrorResponse } from "@/lib/api-auth";
+import { getErrorMessage } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const rateLimitResponse = withRateLimit(request, RATE_LIMITS.checkout);
+    const rateLimitResponse = await withRateLimit(request, RATE_LIMITS.checkout);
     if (rateLimitResponse) return rateLimitResponse;
 
-    // Authentication (optional for checkout - user might not be logged in yet)
-    const { user } = await requireAuth(request);
+    // Authentication required for checkout.
+    const { response: authError, user } = await requireAuth(request);
+    if (authError) return authError;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     
     const body = await request.json();
     
@@ -24,7 +29,7 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.errors);
     }
 
-    const { planId, frequency, userId, userEmail } = body;
+    const { planId, frequency } = body;
 
     const plan = PLAN_DETAILS[planId];
     if (!plan) {
@@ -59,15 +64,15 @@ export async function POST(request: NextRequest) {
       mode: "subscription",
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing`,
-      customer_email: userEmail,
+      customer_email: user.email,
       metadata: {
-        userId: userId || "",
+        userId: user.uid,
         planId,
         frequency,
       },
       subscription_data: {
         metadata: {
-          userId: userId || "",
+          userId: user.uid,
           planId,
           frequency,
         },
@@ -75,10 +80,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Stripe checkout error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create checkout session" },
+      { error: getErrorMessage(error) || "Failed to create checkout session" },
       { status: 500 }
     );
   }

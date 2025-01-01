@@ -16,6 +16,17 @@ function initializeFirebaseAdmin() {
     return;
   }
 
+  // Local emulator suite: no service account needed. The admin SDK reads
+  // FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST from the env.
+  if (process.env.FIRESTORE_EMULATOR_HOST && process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    app = initializeApp({
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "demo-app",
+    });
+    adminDb = getFirestore(app);
+    adminAuth = getAuth(app);
+    return;
+  }
+
   // Check if credentials are available
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;

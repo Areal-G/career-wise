@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AutomatedEmailService } from "@/lib/automated-email-service";
+import { handleApplicationStatusChange } from "@/lib/automated-email-service";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { requireAuth, validateBody, validators, validationErrorResponse } from "@/lib/api-auth";
+import { requireRole, validateBody, validators, validationErrorResponse } from "@/lib/api-auth";
+import { adminDb } from "@/lib/firebase-admin";
+import type { DocumentData } from "firebase/firestore";
 
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const rateLimitResponse = withRateLimit(request, RATE_LIMITS.applicationStatus);
+    const rateLimitResponse = await withRateLimit(request, RATE_LIMITS.applicationStatus);
     if (rateLimitResponse) return rateLimitResponse;
 
     // Authentication required
-    const { response: authError, user } = await requireAuth(request);
+    const { response: authError, user } = await requireRole(request, "employer");
     if (authError) return authError;
+    if (!user || !adminDb) {
+      return NextResponse.json(
+        { error: "Authentication service unavailable" },
+        { status: 503 }
+      );
+    }
 
     const body = await request.json();
 
@@ -19,12 +27,7 @@ export async function POST(request: NextRequest) {
     const validation = validateBody(body, [
       "applicationId",
       "status",
-      "applicantEmail",
-      "applicantName",
-      "jobTitle",
-      "companyName",
     ], {
-      applicantEmail: validators.isEmail,
       status: validators.isOneOf(["approved", "rejected"]),
     });
 
@@ -34,20 +37,69 @@ export async function POST(request: NextRequest) {
 
     const {
       applicationId,
-      jobId,
-      userId,
       status,
-      jobTitle,
-      companyName,
-      applicantName,
-      applicantEmail,
     } = body;
 
+    const applicationDoc = await adminDb.collection("applications").doc(applicationId).get();
+    if (!applicationDoc.exists) {
+      return NextResponse.json(
+        { error: "Application not found" },
+        { status: 404 }
+      );
+    }
+
+    const application = applicationDoc.data() as DocumentData;
+    const opportunityId = application.opportunityId;
+    if (!opportunityId) {
+      return NextResponse.json(
+        { error: "Application is missing an opportunity reference" },
+        { status: 400 }
+      );
+    }
+
+    const opportunityDoc = await adminDb.collection("opportunities").doc(opportunityId).get();
+    if (!opportunityDoc.exists) {
+      return NextResponse.json(
+        { error: "Opportunity not found" },
+        { status: 404 }
+      );
+    }
+
+    const opportunity = opportunityDoc.data() as DocumentData;
+    if (opportunity.employerId !== user.uid) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
+    const applicantUserId = application.userId;
+    const applicantDoc = applicantUserId
+      ? await adminDb.collection("users").doc(applicantUserId).get()
+      : null;
+    const applicantProfile = applicantDoc?.exists ? (applicantDoc.data() as DocumentData) : null;
+
+    const applicantEmail = application.userEmail || applicantProfile?.email;
+    const applicantName = application.userName || applicantProfile?.displayName || "Applicant";
+    const jobTitle = opportunity.title || "Opportunity";
+    const companyName =
+      opportunity.employerName ||
+      opportunity.companyName ||
+      user.email ||
+      "Career Wise";
+
+    if (!applicantEmail || !validators.isEmail(applicantEmail)) {
+      return NextResponse.json(
+        { error: "Applicant email unavailable" },
+        { status: 400 }
+      );
+    }
+
     // Trigger automated email based on status
-    await AutomatedEmailService.handleApplicationStatusChange({
+    await handleApplicationStatusChange({
       applicationId,
-      jobId,
-      userId,
+      jobId: opportunityId,
+      userId: applicantUserId,
       status,
       jobTitle,
       companyName,
@@ -73,7 +125,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   return NextResponse.json({
     message: "Application Status Automation API",
     usage: {
@@ -81,13 +133,7 @@ export async function GET(request: NextRequest) {
         description: "Trigger automated emails for application status changes",
         body: {
           applicationId: "string",
-          jobId: "string (optional)",
-          userId: "string (optional)",
           status: '"approved" | "rejected"',
-          jobTitle: "string",
-          companyName: "string",
-          applicantName: "string",
-          applicantEmail: "string",
         },
       },
     },

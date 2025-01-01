@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// Local Firebase emulator (development only): allow the browser to reach it.
+const emulatorHost = process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST;
+const emulatorSources = emulatorHost ? `http://${emulatorHost}:* ws://${emulatorHost}:*` : "";
+
 // Security headers configuration
 const securityHeaders = [
   {
@@ -28,7 +32,7 @@ const securityHeaders = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(self), interest-cohort=()",
+    value: "camera=(self), microphone=(self), geolocation=(self), interest-cohort=()",
   },
   {
     key: "Content-Security-Policy",
@@ -36,15 +40,19 @@ const securityHeaders = [
       // Default to self
       "default-src 'self'",
       // Scripts: self, inline for Next.js, and specific CDNs
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://apis.google.com https://*.firebaseapp.com",
+      [
+        "script-src 'self' 'unsafe-inline'",
+        process.env.NODE_ENV !== "production" ? "'unsafe-eval'" : "",
+        "https://js.stripe.com https://apis.google.com https://*.firebaseapp.com",
+      ].filter(Boolean).join(" "),
       // Styles: self and inline for component libraries
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Images: self and allowed image hosts
-      "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co https://i.postimg.cc https://*.googleusercontent.com https://*.google.com",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://placehold.co https://*.googleusercontent.com https://*.google.com https://firebasestorage.googleapis.com",
       // Fonts: self and Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Connect: API endpoints
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.stripe.com wss://*.firebaseio.com https://firestore.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+      // Connect: API endpoints, plus the 404/error animation file and its player runtime
+      `connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://api.stripe.com wss://*.firebaseio.com https://firestore.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://lottie.host https://cdn.jsdelivr.net ${emulatorSources}`.trim(),
       // Frame ancestors: prevent clickjacking
       "frame-ancestors 'self'",
       // Form actions
@@ -62,13 +70,20 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+    optimizePackageImports: [
+      "lucide-react",
+      "@radix-ui/react-icons",
+      "date-fns",
+      "framer-motion",
+      "recharts",
+      "react-icons",
+    ],
   },
   compiler: {
     removeConsole:
@@ -88,21 +103,24 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "i.postimg.cc",
+        hostname: "res.cloudinary.com",
         port: "",
         pathname: "/**",
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com",
+        hostname: "firebasestorage.googleapis.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
         port: "",
         pathname: "/**",
       },
     ],
   },
-  allowedDevOrigins: [
-    "https://6000-firebase-studio-1753536684062.cluster-fkltigo73ncaixtmokrzxhwsfc.cloudworkstations.dev",
-  ],
   // Security headers
   async headers() {
     return [
@@ -115,4 +133,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

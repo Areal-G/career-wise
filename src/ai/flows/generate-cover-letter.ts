@@ -6,6 +6,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { requireServerAuthenticatedUser } from '@/lib/server-auth';
+import { enforceAiRateLimit } from '@/lib/ai-rate-limit';
+import { withRetry } from '@/ai/retry';
 
 const GenerateCoverLetterInputSchema = z.object({
   userInfo: z.object({
@@ -41,6 +44,12 @@ export type GenerateCoverLetterOutput = z.infer<typeof GenerateCoverLetterOutput
 export async function generateCoverLetter(
   input: GenerateCoverLetterInput
 ): Promise<GenerateCoverLetterOutput> {
+  const user = await requireServerAuthenticatedUser();
+  await enforceAiRateLimit({
+    userId: user.uid,
+    plan: user.profile?.plan as string | undefined,
+    tool: 'coverLetter',
+  });
   return generateCoverLetterFlow(input);
 }
 
@@ -92,37 +101,6 @@ Create a {{length}} cover letter that:
 Do not include "[Your Address]" or placeholder text. Use the actual information provided.`,
 });
 
-// Helper function to retry with exponential backoff
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      
-      // Only retry on 503 (overloaded) or 429 (rate limit) errors
-      const status = error?.status || error?.statusCode;
-      if (status !== 503 && status !== 429 && attempt > 0) {
-        throw error;
-      }
-      
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        console.log(`AI API overloaded, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-  
-  throw lastError || new Error('Max retries exceeded');
-}
-
 const generateCoverLetterFlow = ai.defineFlow(
   {
     name: 'generateCoverLetterFlow',
@@ -134,4 +112,3 @@ const generateCoverLetterFlow = ai.defineFlow(
     return output!;
   }
 );
-

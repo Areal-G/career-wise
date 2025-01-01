@@ -17,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PlusCircle, Eye, Briefcase, Zap, Settings } from "lucide-react";
+import { PlusCircle, Eye, Briefcase, Zap } from "lucide-react";
 
 export function HeaderQuickActions() {
   const { role, loading } = useAuth();

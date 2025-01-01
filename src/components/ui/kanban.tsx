@@ -35,6 +35,9 @@ export type CardType = {
   employerId?: string;
   employerName?: string;
   status?: string;
+  statusLabel?: string;
+  followUp?: boolean;
+  daysWaiting?: number;
 };
 
 export type ColumnConfig = {
@@ -59,8 +62,8 @@ type KanbanProps = {
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { id: "saved", title: "Saved", headingColor: "text-neutral-400" },
   { id: "applied", title: "Applied", headingColor: "text-blue-400" },
-  { id: "interview", title: "Interview", headingColor: "text-amber-400" },
-  { id: "offer", title: "Offer", headingColor: "text-emerald-400" },
+  { id: "interview", title: "Interview", headingColor: "text-brand-crema" },
+  { id: "offer", title: "Offer", headingColor: "text-brand-sage" },
   { id: "rejected", title: "Rejected", headingColor: "text-red-400" },
 ];
 
@@ -89,7 +92,7 @@ export const Kanban = ({
 
   return (
     <div 
-      className={cn("relative flex h-full w-full gap-4 overflow-x-auto p-6 pt-8", className)}
+      className={cn("relative flex h-full w-full snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto p-4 pt-6 sm:p-6 sm:pt-8 md:snap-none", className)}
       onDragEnd={handleDragEnd}
     >
       {columns.map((col) => (
@@ -245,8 +248,9 @@ const Column = ({
 
   const filteredCards = cards.filter((c) => c.column === column);
 
+  // Phones: one column at a time with the next peeking in. Wide screens: all five share the width.
   return (
-    <div className="w-72 shrink-0">
+    <div className="w-[82vw] max-w-72 shrink-0 snap-start md:w-72 xl:w-auto xl:min-w-0 xl:max-w-none xl:flex-1">
       <div className="mb-3 flex items-center justify-between">
         <h3 className={`font-medium ${headingColor}`}>{title}</h3>
         <span className="rounded-full bg-muted px-2 py-0.5 text-sm text-muted-foreground">
@@ -306,6 +310,9 @@ const Card = ({
   employerId,
   employerName,
   status,
+  statusLabel,
+  followUp,
+  daysWaiting,
   handleDragStart,
   onChat,
   isBeingDeletedPreview,
@@ -314,11 +321,11 @@ const Card = ({
   const cardData: CardType = { 
     title, id, column, company, location, jobUrl, salary,
     isManual, isApplied, isSaved, opportunityId,
-    applicationId, employerId, employerName, status
+    applicationId, employerId, employerName, status, statusLabel, followUp, daysWaiting
   };
 
   // Check if chat should be available (for Approved, Invited, Interview statuses)
-  const canChat = onChat && ["Approved", "Invited", "Interview", "interview", "offer"].includes(status || column);
+  const canChat = onChat && Boolean(isApplied) && (column === "interview" || column === "offer");
 
   return (
     <>
@@ -340,7 +347,7 @@ const Card = ({
             : isApplied 
               ? "border-blue-500/50" 
               : isSaved 
-                ? "border-amber-500/50" 
+                ? "border-brand-crema/50" 
                 : "border-border"
         )}
       >
@@ -350,12 +357,12 @@ const Card = ({
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-foreground truncate flex-1">{title}</p>
               {isApplied && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
-                  Applied
+                <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded whitespace-nowrap">
+                  {statusLabel || "Applied"}
                 </span>
               )}
               {isSaved && !isApplied && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">
+                <span className="text-[10px] px-1.5 py-0.5 bg-brand-crema/20 text-brand-crema rounded">
                   Saved
                 </span>
               )}
@@ -371,7 +378,13 @@ const Card = ({
               </p>
             )}
             {salary && (
-              <p className="text-xs text-emerald-400 mt-1">{salary}</p>
+              <p className="text-xs text-brand-sage mt-1">{salary}</p>
+            )}
+            {followUp && (
+              <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-crema/15 px-2 py-0.5 text-[10px] font-medium text-brand-crema">
+                <Flame className="h-3 w-3" />
+                No reply in {daysWaiting} days — time to follow up
+              </p>
             )}
           </div>
           <div className="flex items-center gap-1">
@@ -397,7 +410,7 @@ const Card = ({
                   e.stopPropagation();
                   onVideoCall(cardData);
                 }}
-                className="text-emerald-500 hover:text-emerald-400 transition-colors p-1 rounded hover:bg-emerald-500/10"
+                className="text-brand-sage hover:text-brand-sage transition-colors p-1 rounded hover:bg-brand-sage/10"
                 title="Video call"
               >
                 <Video className="h-3.5 w-3.5" />

@@ -1,15 +1,26 @@
 import type { Metadata } from 'next';
+import { Inter, Source_Code_Pro } from 'next/font/google';
 import './globals.css';
+import '@/styles/responsive-touch.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/components/theme-provider';
+import { BRAND } from '@/lib/brand';
+
+const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-inter' });
+const sourceCodePro = Source_Code_Pro({ subsets: ['latin'], variable: '--font-source-code-pro' });
 
 export const metadata: Metadata = {
-  title: 'Career Wise',
-  description: 'Your guide to professional growth and opportunities.',
-  icons: {
-    icon: 'https://i.postimg.cc/nLrDYrHW/icon.png',
-  }
+  title: { default: BRAND.name, template: `%s · ${BRAND.name}` },
+  description: BRAND.description,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: BRAND.name,
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export default function RootLayout({
@@ -18,12 +29,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${sourceCodePro.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet" />
+        <meta name="theme-color" content="#5a3a24" />
       </head>
       <body className="font-body antialiased">
         <ThemeProvider

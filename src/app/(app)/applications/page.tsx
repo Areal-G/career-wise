@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useSavedOpportunities } from "@/context/SavedOpportunitiesContext";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import { LumaSpin } from "@/components/ui/luma-spin";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Kanban, type CardType, type ColumnType } from "@/components/ui/kanban";
+import { daysSince, needsFollowUp, statusLabel, toTrackerColumn } from "@/lib/application-status";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -42,6 +43,7 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
+  updateDoc,
   query,
   where,
   onSnapshot,
@@ -80,7 +82,7 @@ export default function ApplicationsPage() {
     }
 
     const applicationsRef = collection(db, "users", user.uid, "applications");
-    
+
     const unsubscribe = onSnapshot(applicationsRef, (snapshot) => {
       const apps: CardType[] = [];
       snapshot.forEach((doc) => {
@@ -116,16 +118,18 @@ export default function ApplicationsPage() {
           orderBy("submittedAt", "desc")
         );
         const snapshot = await getDocs(q);
-        
+
         const applied: CardType[] = await Promise.all(
-          snapshot.docs.map(async (docSnap) => {
+          snapshot.docs
+            .filter((docSnap) => (docSnap.data().status || "").toLowerCase() !== "withdrawn")
+            .map(async (docSnap) => {
             const data = docSnap.data();
             let opportunityDetails: { title: string; employerName: string; location: string; employerId?: string } = { 
               title: "Unknown Job", 
               employerName: "Unknown Company", 
               location: "" 
             };
-            
+
             // Fetch opportunity details
             if (data.opportunityId) {
               const oppRef = doc(db, "opportunities", data.opportunityId);
@@ -141,12 +145,9 @@ export default function ApplicationsPage() {
               }
             }
 
-            // Map application status to column
-            let column: ColumnType = "applied";
-            const status = data.status?.toLowerCase();
-            if (status === "interview" || status === "under review") column = "interview";
-            else if (status === "hired" || status === "accepted" || status === "approved") column = "offer";
-            else if (status === "rejected") column = "rejected";
+            // Same status model as the employer pipeline
+            const column: ColumnType = toTrackerColumn(data.status);
+            const lastActivity = data.updatedAt || data.submittedAt;
 
             return {
               id: docSnap.id,
@@ -161,10 +162,13 @@ export default function ApplicationsPage() {
               employerId: opportunityDetails.employerId,
               employerName: opportunityDetails.employerName,
               status: data.status,
+              statusLabel: statusLabel(data.status),
+              followUp: needsFollowUp(data.status, lastActivity),
+              daysWaiting: daysSince(lastActivity) ?? undefined,
             } as CardType;
           })
         );
-        
+
         setAppliedJobs(applied);
         setLoading(false);
       } catch (error) {
@@ -176,40 +180,41 @@ export default function ApplicationsPage() {
     fetchAppliedJobs();
   }, [user]);
 
-  // Convert saved opportunities to cards
-  const savedCards: CardType[] = saved.map((opp) => ({
-    id: `saved_${opp.id}`,
-    title: opp.title || "Unknown Job",
-    company: opp.employerName || opp.company || "Unknown Company",
-    location: opp.location,
-    column: "saved" as ColumnType,
-    opportunityId: opp.id,
-    isSaved: true,
-  }));
+  // Board cards: manual entries, then applied jobs, then saved jobs (an applied job is only shown once).
+  const allCards = useMemo(() => {
+    const savedCards: CardType[] = saved.map((opp) => ({
+      id: `saved_${opp.id}`,
+      title: opp.title || "Unknown Job",
+      company: opp.employerName || opp.company || "Unknown Company",
+      location: opp.location,
+      column: "saved" as ColumnType,
+      opportunityId: opp.id,
+      isSaved: true,
+    }));
 
-  // Merge all cards (deduplicate by opportunityId)
-  // Jobs that are both saved AND applied will only appear in Applied column
-  const allCards = [...manualCards];
-  
-  // Add applied jobs (avoid duplicates)
-  appliedJobs.forEach((job) => {
-    if (!allCards.find(c => c.id === job.id || (job.opportunityId && c.opportunityId === job.opportunityId))) {
-      allCards.push(job);
-    }
-  });
-  
-  // Add saved cards (only if not already applied)
-  savedCards.forEach((savedCard) => {
-    const opportunityId = savedCard.opportunityId;
-    if (!allCards.find(c => c.opportunityId === opportunityId)) {
-      allCards.push(savedCard);
-    }
-  });
+    const cards = [...manualCards];
+
+    // Add applied jobs (avoid duplicates)
+    appliedJobs.forEach((job) => {
+      if (!cards.find(c => c.id === job.id || (job.opportunityId && c.opportunityId === job.opportunityId))) {
+        cards.push(job);
+      }
+    });
+
+    // Add saved cards (only if not already applied)
+    savedCards.forEach((savedCard) => {
+      const opportunityId = savedCard.opportunityId;
+      if (!cards.find(c => c.opportunityId === opportunityId)) {
+        cards.push(savedCard);
+      }
+    });
+    return cards;
+  }, [saved, manualCards, appliedJobs]);
 
   // Save manual card to Firestore
   const saveCardToFirestore = useCallback(async (card: CardType) => {
     if (!user) return;
-    
+
     const cardRef = doc(db, "users", user.uid, "applications", card.id);
     await setDoc(cardRef, {
       title: card.title,
@@ -225,7 +230,7 @@ export default function ApplicationsPage() {
   // Delete manual card from Firestore
   const deleteCardFromFirestore = useCallback(async (cardId: string) => {
     if (!user) return;
-    
+
     const cardRef = doc(db, "users", user.uid, "applications", cardId);
     await deleteDoc(cardRef);
   }, [user]);
@@ -233,9 +238,13 @@ export default function ApplicationsPage() {
   // Withdraw application
   const withdrawApplication = async (card: CardType) => {
     if (!user || !card.isApplied) return;
-    
+
     try {
-      await deleteDoc(doc(db, "applications", card.id));
+      await updateDoc(doc(db, "applications", card.id), {
+        status: "withdrawn",
+        withdrawnAt: new Date(),
+        updatedAt: new Date(),
+      });
       setAppliedJobs(prev => prev.filter(j => j.id !== card.id));
       toast({ title: "Application withdrawn" });
     } catch (error) {
@@ -245,25 +254,25 @@ export default function ApplicationsPage() {
   };
 
   // Unsave opportunity
-  const unsaveOpportunity = (card: CardType) => {
+  const unsaveOpportunity = useCallback((card: CardType) => {
     if (!card.isSaved || !card.opportunityId) return;
-    
+
     const opportunity = saved.find(s => s.id === card.opportunityId);
     if (opportunity) {
       toggleSave(opportunity);
       toast({ title: "Removed from saved" });
     }
-  };
+  }, [saved, toggleSave, toast]);
 
   // Handle cards change - sync to Firestore
   const handleSetCards = useCallback(async (newCards: CardType[] | ((prev: CardType[]) => CardType[])) => {
     const updatedCards = typeof newCards === 'function' ? newCards(allCards) : newCards;
-    
+
     // Find deleted cards
     const deletedCards = allCards.filter(
       oldCard => !updatedCards.find(newCard => newCard.id === oldCard.id)
     );
-    
+
     // Handle deletions
     for (const card of deletedCards) {
       if (card.isManual) {
@@ -306,7 +315,7 @@ export default function ApplicationsPage() {
       console.error("Error syncing to Firestore:", error);
       toast({ title: "Failed to save changes", variant: "destructive" });
     }
-  }, [allCards, manualCards, saveCardToFirestore, deleteCardFromFirestore, toast, saved, toggleSave]);
+  }, [allCards, manualCards, saveCardToFirestore, deleteCardFromFirestore, toast, unsaveOpportunity]);
 
   const handleAddApplication = async () => {
     if (!user || !newApp.jobTitle.trim() || !newApp.company.trim()) {
@@ -406,13 +415,13 @@ export default function ApplicationsPage() {
 
       {/* Header */}
       <div className="border-b border-border bg-background sticky top-0 z-40">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-violet-500/20 rounded-lg">
-                <Briefcase className="h-5 w-5 text-violet-400" />
+              <div className="shrink-0 p-2 bg-primary/10 rounded-lg">
+                <Briefcase className="h-5 w-5 text-primary" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-xl font-bold text-foreground">Application Tracker</h1>
                 <p className="text-sm text-muted-foreground">
                   {stats.total} total • {stats.applied} applied • {stats.interview} interviews • {stats.offer} offers
@@ -420,20 +429,20 @@ export default function ApplicationsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search jobs..."
-                  className="pl-9 w-64 bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-9 w-full sm:w-64 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-violet-600 hover:bg-violet-700 rounded-full">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Application
+                  <Button className="shrink-0 rounded-full" aria-label="Add application">
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Add Application</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-card border-border">
@@ -496,7 +505,7 @@ export default function ApplicationsPage() {
                     <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="border-border text-foreground rounded-full">
                       Cancel
                     </Button>
-                    <Button onClick={handleAddApplication} className="bg-violet-600 hover:bg-violet-700 rounded-full">
+                    <Button onClick={handleAddApplication} className="rounded-full">
                       Add Application
                     </Button>
                   </DialogFooter>

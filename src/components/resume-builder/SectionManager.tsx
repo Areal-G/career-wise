@@ -27,9 +27,7 @@ import {
 } from 'lucide-react';
 import { 
   SectionId, 
-  SectionConfig, 
   SECTION_CONFIGS,
-  DEFAULT_ENABLED_SECTIONS,
 } from '@/types/resume-types';
 
 const ICON_MAP: Record<string, React.ElementType> = {

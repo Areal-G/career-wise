@@ -3,9 +3,8 @@
 import * as React from "react"
 import { BadgeCheck, Loader2 } from "lucide-react"
 import NumberFlow from "@number-flow/react"
-import { useRouter } from "next/navigation"
 
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button"
@@ -31,7 +30,6 @@ interface PricingCardProps {
 export function PricingCard({ tier, paymentFrequency }: PricingCardProps) {
   const { user } = useAuth()
   const { toast } = useToast()
-  const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
 
   const price = tier.price[paymentFrequency]
@@ -72,11 +70,11 @@ export function PricingCard({ tier, paymentFrequency }: PricingCardProps) {
       if (data.url) {
         window.location.href = data.url
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Checkout error:", error)
       toast({
         title: "Checkout Failed",
-        description: error.message || "Something went wrong. Please try again.",
+        description: getErrorMessage(error) || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -88,7 +86,7 @@ export function PricingCard({ tier, paymentFrequency }: PricingCardProps) {
     if (isPaidPlan) {
       handleCheckout()
     } else if (isContactPlan) {
-      window.location.href = "mailto:contact@career-wise.com"
+      window.location.href = "mailto:contact@careerwise.app"
     }
   }
 
