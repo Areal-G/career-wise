@@ -82,7 +82,6 @@ const nextConfig: NextConfig = {
       "date-fns",
       "framer-motion",
       "recharts",
-      "react-icons",
     ],
   },
   compiler: {
