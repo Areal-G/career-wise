@@ -1,13 +1,11 @@
 /**
- * Demo dataset for the "Try demo" guest login.
+ * Sample dataset for local development and staging.
  * Plain data only — written to Firestore by ./seed.ts with the Admin SDK.
  */
 
-export const DEMO_PASSWORD = "demo-guest-2026";
-
-export const DEMO_SEEKER = {
-  uid: "demo-seeker",
-  email: "maya.demo@example.com",
+export const SAMPLE_SEEKER = {
+  uid: "sample-seeker",
+  email: "maya@example.com",
   firstName: "Maya",
   lastName: "Okafor",
   headline: "Frontend Engineer · React & TypeScript",
@@ -41,9 +39,9 @@ export const DEMO_SEEKER = {
   ],
 };
 
-export const DEMO_EMPLOYER = {
-  uid: "demo-employer",
-  email: "talent.demo@example.com",
+export const SAMPLE_EMPLOYER = {
+  uid: "sample-employer",
+  email: "talent@example.com",
   firstName: "Northwind",
   lastName: "Labs",
   companyName: "Northwind Labs",
@@ -72,7 +70,7 @@ export const DEMO_EMPLOYER = {
 /** Other companies that post jobs. */
 export const COMPANIES = [
   {
-    uid: "demo-co-lumen",
+    uid: "sample-co-lumen",
     companyName: "Lumen Health",
     industry: "Healthcare",
     location: "Boston, MA",
@@ -84,7 +82,7 @@ export const COMPANIES = [
     color: "#0ea5e9",
   },
   {
-    uid: "demo-co-fernwood",
+    uid: "sample-co-fernwood",
     companyName: "Fernwood Finance",
     industry: "Fintech",
     location: "New York, NY",
@@ -96,7 +94,7 @@ export const COMPANIES = [
     color: "#16a34a",
   },
   {
-    uid: "demo-co-orbit",
+    uid: "sample-co-orbit",
     companyName: "Orbit Logistics",
     industry: "Logistics",
     location: "Chicago, IL",
@@ -108,7 +106,7 @@ export const COMPANIES = [
     color: "#f97316",
   },
   {
-    uid: "demo-co-canvas",
+    uid: "sample-co-canvas",
     companyName: "Canvas & Code",
     industry: "Design Agency",
     location: "Remote",
@@ -120,7 +118,7 @@ export const COMPANIES = [
     color: "#a855f7",
   },
   {
-    uid: "demo-co-greenleaf",
+    uid: "sample-co-greenleaf",
     companyName: "Greenleaf Energy",
     industry: "Clean Energy",
     location: "San Diego, CA",
@@ -132,7 +130,7 @@ export const COMPANIES = [
     color: "#22c55e",
   },
   {
-    uid: "demo-co-atlas",
+    uid: "sample-co-atlas",
     companyName: "Atlas Learning",
     industry: "EdTech",
     location: "Seattle, WA",
@@ -167,10 +165,10 @@ const EEO =
   "We are an equal opportunity employer and value diversity. All qualified applicants will receive consideration for employment without regard to race, colour, religion, sex, sexual orientation, gender identity, national origin, disability or veteran status.";
 
 export const JOBS: Job[] = [
-  // Northwind Labs (demo employer)
+  // Northwind Labs (sample employer)
   {
     id: "job-nw-senior-fe",
-    employerId: DEMO_EMPLOYER.uid,
+    employerId: SAMPLE_EMPLOYER.uid,
     title: "Senior Frontend Engineer",
     type: "Full-time",
     location: "Remote (US / Canada)",
@@ -188,7 +186,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-nw-product-designer",
-    employerId: DEMO_EMPLOYER.uid,
+    employerId: SAMPLE_EMPLOYER.uid,
     title: "Product Designer",
     type: "Full-time",
     location: "Remote (Americas)",
@@ -204,7 +202,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-nw-backend",
-    employerId: DEMO_EMPLOYER.uid,
+    employerId: SAMPLE_EMPLOYER.uid,
     title: "Backend Engineer, Data Pipeline",
     type: "Full-time",
     location: "Remote (US)",
@@ -220,7 +218,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-nw-devrel-intern",
-    employerId: DEMO_EMPLOYER.uid,
+    employerId: SAMPLE_EMPLOYER.uid,
     title: "Developer Relations Intern",
     type: "Internship",
     location: "Remote",
@@ -237,7 +235,7 @@ export const JOBS: Job[] = [
   // Filled / closed roles, so the employer's status chart shows history
   {
     id: "job-nw-qa-engineer",
-    employerId: DEMO_EMPLOYER.uid,
+    employerId: SAMPLE_EMPLOYER.uid,
     title: "QA Automation Engineer",
     type: "Full-time",
     location: "Remote (US)",
@@ -252,7 +250,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-nw-support-eng",
-    employerId: DEMO_EMPLOYER.uid,
+    employerId: SAMPLE_EMPLOYER.uid,
     title: "Support Engineer",
     type: "Contract",
     location: "Remote (EU)",
@@ -268,7 +266,7 @@ export const JOBS: Job[] = [
   // Other companies
   {
     id: "job-lumen-fe",
-    employerId: "demo-co-lumen",
+    employerId: "sample-co-lumen",
     title: "Frontend Engineer, Patient Experience",
     type: "Full-time",
     location: "Boston, MA (Hybrid)",
@@ -284,7 +282,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-lumen-data",
-    employerId: "demo-co-lumen",
+    employerId: "sample-co-lumen",
     title: "Data Analyst",
     type: "Full-time",
     location: "Remote (US)",
@@ -299,7 +297,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-fernwood-fullstack",
-    employerId: "demo-co-fernwood",
+    employerId: "sample-co-fernwood",
     title: "Full-Stack Engineer, Payments",
     type: "Full-time",
     location: "New York, NY (Hybrid)",
@@ -315,7 +313,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-fernwood-pm",
-    employerId: "demo-co-fernwood",
+    employerId: "sample-co-fernwood",
     title: "Product Manager, Lending",
     type: "Full-time",
     location: "New York, NY",
@@ -329,7 +327,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-orbit-mobile",
-    employerId: "demo-co-orbit",
+    employerId: "sample-co-orbit",
     title: "React Native Engineer",
     type: "Contract",
     location: "Chicago, IL (Remote OK)",
@@ -343,7 +341,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-orbit-sre",
-    employerId: "demo-co-orbit",
+    employerId: "sample-co-orbit",
     title: "Site Reliability Engineer",
     type: "Full-time",
     location: "Chicago, IL",
@@ -357,7 +355,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-canvas-ux",
-    employerId: "demo-co-canvas",
+    employerId: "sample-co-canvas",
     title: "UX/UI Designer",
     type: "Part-time",
     location: "Remote",
@@ -371,7 +369,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-canvas-intern",
-    employerId: "demo-co-canvas",
+    employerId: "sample-co-canvas",
     title: "Frontend Developer Intern",
     type: "Internship",
     location: "Remote",
@@ -385,7 +383,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-greenleaf-ml",
-    employerId: "demo-co-greenleaf",
+    employerId: "sample-co-greenleaf",
     title: "Machine Learning Engineer, Forecasting",
     type: "Full-time",
     location: "San Diego, CA (Hybrid)",
@@ -399,7 +397,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-greenleaf-volunteer",
-    employerId: "demo-co-greenleaf",
+    employerId: "sample-co-greenleaf",
     title: "Community Solar Volunteer Coordinator",
     type: "Volunteer",
     location: "San Diego, CA",
@@ -413,7 +411,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-atlas-fe",
-    employerId: "demo-co-atlas",
+    employerId: "sample-co-atlas",
     title: "Frontend Engineer, Learning Experience",
     type: "Full-time",
     location: "Seattle, WA (Remote-friendly)",
@@ -427,7 +425,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-orbit-web",
-    employerId: "demo-co-orbit",
+    employerId: "sample-co-orbit",
     title: "Senior Web Engineer, Shipper Portal",
     type: "Full-time",
     location: "Remote (US)",
@@ -441,7 +439,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-greenleaf-fe",
-    employerId: "demo-co-greenleaf",
+    employerId: "sample-co-greenleaf",
     title: "Frontend Engineer, Energy Dashboards",
     type: "Full-time",
     location: "San Diego, CA (Hybrid)",
@@ -455,7 +453,7 @@ export const JOBS: Job[] = [
   },
   {
     id: "job-atlas-content",
-    employerId: "demo-co-atlas",
+    employerId: "sample-co-atlas",
     title: "Curriculum Designer (Math)",
     type: "Contract",
     location: "Remote",
@@ -471,7 +469,7 @@ export const JOBS: Job[] = [
 
 export function jobDoc(job: Job, employerName: string) {
   const company = COMPANIES.find((c) => c.uid === job.employerId);
-  const overview = company?.companyOverview ?? DEMO_EMPLOYER.companyOverview;
+  const overview = company?.companyOverview ?? SAMPLE_EMPLOYER.companyOverview;
   const { id, daysAgo, ...rest } = job;
   return {
     ...rest,
@@ -488,21 +486,21 @@ export function jobDoc(job: Job, employerName: string) {
 
 /** Candidates in the talent pool (also post on the feed). */
 export const CANDIDATES = [
-  { uid: "demo-cand-01", firstName: "Daniel", lastName: "Reyes", headline: "Senior Frontend Engineer", location: "Denver, CO", skills: "React, TypeScript, Next.js, GraphQL, Testing, Accessibility", education: "B.S. Software Engineering, Colorado State", careerGoals: "Lead frontend architecture at a developer-tools company.", employmentHistory: "Senior Frontend Engineer — Ledgerly (2020–present)\nFrontend Engineer — Paperplane (2017–2020)" },
-  { uid: "demo-cand-02", firstName: "Priya", lastName: "Natarajan", headline: "Product Designer · Design Systems", location: "Toronto, ON", skills: "Figma, Design Systems, Prototyping, User Research, Interaction Design", education: "B.Des. Interaction Design, OCAD University", careerGoals: "Shape design systems for complex B2B tools.", employmentHistory: "Product Designer — Shopwave (2021–present)\nUX Designer — Northlight Agency (2018–2021)" },
-  { uid: "demo-cand-03", firstName: "Marcus", lastName: "Bell", headline: "Backend Engineer · Go & Kafka", location: "Atlanta, GA", skills: "Go, Kafka, PostgreSQL, Kubernetes, Distributed Systems", education: "B.S. Computer Engineering, Georgia Tech", careerGoals: "Build reliable data infrastructure at scale.", employmentHistory: "Backend Engineer — Streamline (2019–present)" },
-  { uid: "demo-cand-04", firstName: "Sofia", lastName: "Lindqvist", headline: "Frontend Engineer", location: "Remote · Stockholm", skills: "React, TypeScript, Next.js, Tailwind CSS, Jest", education: "M.Sc. Media Technology, KTH", careerGoals: "Work on fast, beautiful dashboards.", employmentHistory: "Frontend Engineer — Klarvy (2021–present)" },
-  { uid: "demo-cand-05", firstName: "Jamal", lastName: "Carter", headline: "Developer Advocate in training", location: "Philadelphia, PA", skills: "JavaScript, Technical Writing, Public Speaking, Video", education: "B.A. Communications, Temple University (2026)", careerGoals: "Break into developer relations.", employmentHistory: "Student Tech Blogger (2023–present)" },
-  { uid: "demo-cand-06", firstName: "Elena", lastName: "Petrova", headline: "Data Engineer", location: "Austin, TX", skills: "Python, Kafka, ClickHouse, SQL, Airflow, Go", education: "M.S. Data Science, UT Austin", careerGoals: "Design real-time analytics platforms.", employmentHistory: "Data Engineer — Fieldnote (2020–present)" },
-  { uid: "demo-cand-07", firstName: "Kenji", lastName: "Watanabe", headline: "Full-Stack Engineer", location: "San Francisco, CA", skills: "TypeScript, React, Node.js, PostgreSQL, GraphQL", education: "B.S. EECS, UC Berkeley", careerGoals: "Own product areas end-to-end.", employmentHistory: "Full-Stack Engineer — Quillpad (2018–present)" },
-  { uid: "demo-cand-08", firstName: "Amara", lastName: "Nwosu", headline: "UX Researcher & Designer", location: "London, UK", skills: "User Research, Figma, Prototyping, Usability Testing", education: "M.A. HCI, UCL", careerGoals: "Lead research for developer tools.", employmentHistory: "UX Researcher — Brightpath (2020–present)" },
-  { uid: "demo-cand-09", firstName: "Lucas", lastName: "Moreau", headline: "Platform Engineer", location: "Montréal, QC", skills: "Kubernetes, Go, Terraform, AWS, Observability", education: "B.Eng. Software, Polytechnique Montréal", careerGoals: "Build developer platforms that teams love.", employmentHistory: "Platform Engineer — Cloudnine (2019–present)" },
-  { uid: "demo-cand-10", firstName: "Hannah", lastName: "Kim", headline: "Frontend Developer · Accessibility", location: "Portland, OR", skills: "React, Accessibility, TypeScript, CSS, Testing", education: "B.S. Computer Science, Oregon State", careerGoals: "Make the web usable for everyone.", employmentHistory: "Frontend Developer — Evergreen Gov Digital (2021–present)" },
-  { uid: "demo-cand-11", firstName: "Omar", lastName: "Haddad", headline: "CS Student · Aspiring DevRel", location: "Detroit, MI", skills: "JavaScript, Python, Technical Writing, Community", education: "B.S. Computer Science, Wayne State (2027)", careerGoals: "Help developers learn new tools.", employmentHistory: "Teaching Assistant — Wayne State (2024–present)" },
-  { uid: "demo-cand-12", firstName: "Grace", lastName: "Liu", headline: "Senior Product Designer", location: "Remote · Vancouver", skills: "Figma, Design Systems, Interaction Design, Prototyping", education: "BFA Design, Emily Carr University", careerGoals: "Design calm, powerful professional tools.", employmentHistory: "Senior Product Designer — Tandem (2019–present)" },
+  { uid: "sample-cand-01", firstName: "Daniel", lastName: "Reyes", headline: "Senior Frontend Engineer", location: "Denver, CO", skills: "React, TypeScript, Next.js, GraphQL, Testing, Accessibility", education: "B.S. Software Engineering, Colorado State", careerGoals: "Lead frontend architecture at a developer-tools company.", employmentHistory: "Senior Frontend Engineer — Ledgerly (2020–present)\nFrontend Engineer — Paperplane (2017–2020)" },
+  { uid: "sample-cand-02", firstName: "Priya", lastName: "Natarajan", headline: "Product Designer · Design Systems", location: "Toronto, ON", skills: "Figma, Design Systems, Prototyping, User Research, Interaction Design", education: "B.Des. Interaction Design, OCAD University", careerGoals: "Shape design systems for complex B2B tools.", employmentHistory: "Product Designer — Shopwave (2021–present)\nUX Designer — Northlight Agency (2018–2021)" },
+  { uid: "sample-cand-03", firstName: "Marcus", lastName: "Bell", headline: "Backend Engineer · Go & Kafka", location: "Atlanta, GA", skills: "Go, Kafka, PostgreSQL, Kubernetes, Distributed Systems", education: "B.S. Computer Engineering, Georgia Tech", careerGoals: "Build reliable data infrastructure at scale.", employmentHistory: "Backend Engineer — Streamline (2019–present)" },
+  { uid: "sample-cand-04", firstName: "Sofia", lastName: "Lindqvist", headline: "Frontend Engineer", location: "Remote · Stockholm", skills: "React, TypeScript, Next.js, Tailwind CSS, Jest", education: "M.Sc. Media Technology, KTH", careerGoals: "Work on fast, beautiful dashboards.", employmentHistory: "Frontend Engineer — Klarvy (2021–present)" },
+  { uid: "sample-cand-05", firstName: "Jamal", lastName: "Carter", headline: "Developer Advocate in training", location: "Philadelphia, PA", skills: "JavaScript, Technical Writing, Public Speaking, Video", education: "B.A. Communications, Temple University (2026)", careerGoals: "Break into developer relations.", employmentHistory: "Student Tech Blogger (2023–present)" },
+  { uid: "sample-cand-06", firstName: "Elena", lastName: "Petrova", headline: "Data Engineer", location: "Austin, TX", skills: "Python, Kafka, ClickHouse, SQL, Airflow, Go", education: "M.S. Data Science, UT Austin", careerGoals: "Design real-time analytics platforms.", employmentHistory: "Data Engineer — Fieldnote (2020–present)" },
+  { uid: "sample-cand-07", firstName: "Kenji", lastName: "Watanabe", headline: "Full-Stack Engineer", location: "San Francisco, CA", skills: "TypeScript, React, Node.js, PostgreSQL, GraphQL", education: "B.S. EECS, UC Berkeley", careerGoals: "Own product areas end-to-end.", employmentHistory: "Full-Stack Engineer — Quillpad (2018–present)" },
+  { uid: "sample-cand-08", firstName: "Amara", lastName: "Nwosu", headline: "UX Researcher & Designer", location: "London, UK", skills: "User Research, Figma, Prototyping, Usability Testing", education: "M.A. HCI, UCL", careerGoals: "Lead research for developer tools.", employmentHistory: "UX Researcher — Brightpath (2020–present)" },
+  { uid: "sample-cand-09", firstName: "Lucas", lastName: "Moreau", headline: "Platform Engineer", location: "Montréal, QC", skills: "Kubernetes, Go, Terraform, AWS, Observability", education: "B.Eng. Software, Polytechnique Montréal", careerGoals: "Build developer platforms that teams love.", employmentHistory: "Platform Engineer — Cloudnine (2019–present)" },
+  { uid: "sample-cand-10", firstName: "Hannah", lastName: "Kim", headline: "Frontend Developer · Accessibility", location: "Portland, OR", skills: "React, Accessibility, TypeScript, CSS, Testing", education: "B.S. Computer Science, Oregon State", careerGoals: "Make the web usable for everyone.", employmentHistory: "Frontend Developer — Evergreen Gov Digital (2021–present)" },
+  { uid: "sample-cand-11", firstName: "Omar", lastName: "Haddad", headline: "CS Student · Aspiring DevRel", location: "Detroit, MI", skills: "JavaScript, Python, Technical Writing, Community", education: "B.S. Computer Science, Wayne State (2027)", careerGoals: "Help developers learn new tools.", employmentHistory: "Teaching Assistant — Wayne State (2024–present)" },
+  { uid: "sample-cand-12", firstName: "Grace", lastName: "Liu", headline: "Senior Product Designer", location: "Remote · Vancouver", skills: "Figma, Design Systems, Interaction Design, Prototyping", education: "BFA Design, Emily Carr University", careerGoals: "Design calm, powerful professional tools.", employmentHistory: "Senior Product Designer — Tandem (2019–present)" },
 ];
 
-/** Applications to the demo employer's jobs: [candidateIndex, jobId, status, daysAgo]. */
+/** Applications to the sample employer's jobs: [candidateIndex, jobId, status, daysAgo]. */
 export const EMPLOYER_APPLICATIONS: Array<[number, string, string, number]> = [
   [0, "job-nw-senior-fe", "Interview", 2],
   [3, "job-nw-senior-fe", "Screening", 2],
@@ -518,7 +516,7 @@ export const EMPLOYER_APPLICATIONS: Array<[number, string, string, number]> = [
   [10, "job-nw-devrel-intern", "Screening", 14],
 ];
 
-/** Demo seeker's applications: [jobId, status, daysAgo, coverLetter]. */
+/** Sample seeker's applications: [jobId, status, daysAgo, coverLetter]. */
 export const SEEKER_APPLICATIONS: Array<[string, string, number]> = [
   ["job-nw-senior-fe", "Interview", 2],
   ["job-lumen-fe", "Submitted", 1],
@@ -533,7 +531,7 @@ export const SEEKER_APPLICATIONS: Array<[string, string, number]> = [
   ["job-lumen-data", "Rejected", 34],
 ];
 
-/** Manual job-tracker cards for the demo seeker (users/{uid}/applications). */
+/** Manual job-tracker cards for the sample seeker (users/{uid}/applications). */
 export const SEEKER_TRACKER = [
   { id: "trk-1", title: "Senior UI Engineer", company: "Pinecone Studio", location: "Remote", salary: "$140k – $160k", column: "saved", jobUrl: "https://jobs.example.com/pinecone/ui" },
   { id: "trk-2", title: "Frontend Engineer II", company: "Harbor Bank", location: "Austin, TX", salary: "$130k", column: "applied", jobUrl: "https://jobs.example.com/harbor/fe2" },
@@ -554,66 +552,66 @@ export const COVER_LETTERS = [
 /** Feed posts: [authorUid, content, hoursAgo, likerIndexes, comments[[authorUid, text]]] */
 export const POSTS: Array<{ author: string; content: string; hoursAgo: number; likes: string[]; comments: Array<[string, string]> }> = [
   {
-    author: DEMO_EMPLOYER.uid,
+    author: SAMPLE_EMPLOYER.uid,
     content: "We're hiring! 🚀 Northwind Labs is looking for a Senior Frontend Engineer and a Product Designer to help engineers debug production faster. Fully remote, equity for everyone, and a 4-day week every August. Check out our open roles.",
     hoursAgo: 5,
-    likes: ["demo-seeker", "demo-cand-01", "demo-cand-02", "demo-cand-04", "demo-cand-12"],
-    comments: [["demo-cand-04", "Applied! Love the written-first culture."], ["demo-seeker", "The 4-day August week is such a great perk 🙌"]],
+    likes: ["sample-seeker", "sample-cand-01", "sample-cand-02", "sample-cand-04", "sample-cand-12"],
+    comments: [["sample-cand-04", "Applied! Love the written-first culture."], ["sample-seeker", "The 4-day August week is such a great perk 🙌"]],
   },
   {
-    author: "demo-cand-02",
+    author: "sample-cand-02",
     content: "Shipped a full design-system refresh this week: 140 components, dark mode, and AA contrast everywhere. Biggest lesson — audit your tokens before you touch a single component.",
     hoursAgo: 9,
-    likes: ["demo-cand-12", "demo-cand-08", "demo-seeker", DEMO_EMPLOYER.uid],
-    comments: [["demo-cand-12", "Token audit first is so true. Great work, Priya!"]],
+    likes: ["sample-cand-12", "sample-cand-08", "sample-seeker", SAMPLE_EMPLOYER.uid],
+    comments: [["sample-cand-12", "Token audit first is so true. Great work, Priya!"]],
   },
   {
-    author: "demo-seeker",
+    author: "sample-seeker",
     content: "Wrote up how we cut our merchant dashboard load time by 52% — code-splitting, image budgets, and moving three heavy charts to server components. Happy to share the checklist if it's useful to anyone!",
     hoursAgo: 20,
-    likes: ["demo-cand-01", "demo-cand-04", "demo-cand-07", "demo-cand-10", DEMO_EMPLOYER.uid, "demo-co-atlas"],
-    comments: [["demo-cand-10", "Would love the checklist!"], [DEMO_EMPLOYER.uid, "This is exactly the kind of work our Insights team does — would love to chat."]],
+    likes: ["sample-cand-01", "sample-cand-04", "sample-cand-07", "sample-cand-10", SAMPLE_EMPLOYER.uid, "sample-co-atlas"],
+    comments: [["sample-cand-10", "Would love the checklist!"], [SAMPLE_EMPLOYER.uid, "This is exactly the kind of work our Insights team does — would love to chat."]],
   },
   {
-    author: "demo-co-greenleaf",
+    author: "sample-co-greenleaf",
     content: "☀️ Our forecasting models helped 40,000 homes shift 18 MWh of demand off-peak during last week's heatwave. We're growing the ML team in San Diego — come build climate tech with us.",
     hoursAgo: 30,
-    likes: ["demo-cand-06", "demo-cand-09", "demo-seeker"],
+    likes: ["sample-cand-06", "sample-cand-09", "sample-seeker"],
     comments: [],
   },
   {
-    author: "demo-cand-05",
+    author: "sample-cand-05",
     content: "Gave my first ever conference lightning talk today on making docs searchable. Nervous for the first 30 seconds, then it was the most fun I've had all year. 🎤",
     hoursAgo: 44,
-    likes: ["demo-cand-11", "demo-cand-02", "demo-seeker", DEMO_EMPLOYER.uid],
-    comments: [["demo-cand-11", "Congrats Jamal! Was it recorded?"]],
+    likes: ["sample-cand-11", "sample-cand-02", "sample-seeker", SAMPLE_EMPLOYER.uid],
+    comments: [["sample-cand-11", "Congrats Jamal! Was it recorded?"]],
   },
   {
-    author: "demo-cand-03",
+    author: "sample-cand-03",
     content: "Hot take: most Kafka problems are actually schema problems. Invest in a schema registry and contract tests early — future you will thank you.",
     hoursAgo: 60,
-    likes: ["demo-cand-06", "demo-cand-09"],
-    comments: [["demo-cand-06", "Agree 100%. Schema drift cost us a whole sprint last year."]],
+    likes: ["sample-cand-06", "sample-cand-09"],
+    comments: [["sample-cand-06", "Agree 100%. Schema drift cost us a whole sprint last year."]],
   },
   {
-    author: "demo-co-lumen",
+    author: "sample-co-lumen",
     content: "Lumen Health just passed 3 million patients on our portal 💙 Huge thanks to our clinicians and engineers. We're hiring frontend engineers who care about accessibility.",
     hoursAgo: 75,
-    likes: ["demo-cand-10", "demo-seeker"],
+    likes: ["sample-cand-10", "sample-seeker"],
     comments: [],
   },
   {
-    author: "demo-cand-12",
+    author: "sample-cand-12",
     content: "Three things I look for in a portfolio review: a clear problem statement, evidence of iteration, and the outcome — even if it's 'we learned this didn't work'.",
     hoursAgo: 96,
-    likes: ["demo-cand-02", "demo-cand-08", "demo-seeker"],
-    comments: [["demo-cand-08", "The 'didn't work' stories are often the most interesting!"]],
+    likes: ["sample-cand-02", "sample-cand-08", "sample-seeker"],
+    comments: [["sample-cand-08", "The 'didn't work' stories are often the most interesting!"]],
   },
   {
-    author: "demo-cand-07",
+    author: "sample-cand-07",
     content: "Six months into using server components in production. Net result: 30% less client JS, simpler data fetching, and a few new footguns around caching. Worth it.",
     hoursAgo: 130,
-    likes: ["demo-cand-04", "demo-seeker", "demo-cand-01"],
+    likes: ["sample-cand-04", "sample-seeker", "sample-cand-01"],
     comments: [],
   },
 ];
@@ -622,51 +620,51 @@ export const POSTS: Array<{ author: string; content: string; hoursAgo: number; l
 export const CHATS = [
   {
     id: "chat-seeker-northwind",
-    participants: [DEMO_SEEKER.uid, DEMO_EMPLOYER.uid],
+    participants: [SAMPLE_SEEKER.uid, SAMPLE_EMPLOYER.uid],
     opportunityId: "job-nw-senior-fe",
     opportunityTitle: "Senior Frontend Engineer",
     applicationId: "app-seeker-job-nw-senior-fe",
     messages: [
-      [DEMO_EMPLOYER.uid, "Hi Maya! Thanks for applying to the Senior Frontend Engineer role. Your dashboard performance write-up caught our eye.", 2900],
-      [DEMO_SEEKER.uid, "Thank you! I'm really excited about the Insights team — I've been a Northwind user for a while.", 2880],
-      [DEMO_EMPLOYER.uid, "Great to hear. Would you be free for a 45-minute technical conversation next Tuesday or Wednesday?", 1500],
-      [DEMO_SEEKER.uid, "Wednesday at 11am CT works perfectly for me.", 1440],
-      [DEMO_EMPLOYER.uid, "Booked! You'll get a calendar invite shortly. Looking forward to it 🙌", 60],
+      [SAMPLE_EMPLOYER.uid, "Hi Maya! Thanks for applying to the Senior Frontend Engineer role. Your dashboard performance write-up caught our eye.", 2900],
+      [SAMPLE_SEEKER.uid, "Thank you! I'm really excited about the Insights team — I've been a Northwind user for a while.", 2880],
+      [SAMPLE_EMPLOYER.uid, "Great to hear. Would you be free for a 45-minute technical conversation next Tuesday or Wednesday?", 1500],
+      [SAMPLE_SEEKER.uid, "Wednesday at 11am CT works perfectly for me.", 1440],
+      [SAMPLE_EMPLOYER.uid, "Booked! You'll get a calendar invite shortly. Looking forward to it 🙌", 60],
     ] as Array<[string, string, number]>,
   },
   {
     id: "chat-seeker-fernwood",
-    participants: [DEMO_SEEKER.uid, "demo-co-fernwood"],
+    participants: [SAMPLE_SEEKER.uid, "sample-co-fernwood"],
     opportunityId: "job-fernwood-fullstack",
     opportunityTitle: "Full-Stack Engineer, Payments",
     applicationId: "app-seeker-job-fernwood-fullstack",
     messages: [
-      ["demo-co-fernwood", "Hi Maya, we'd love to move you to the onsite loop for the Payments role.", 4000],
-      [DEMO_SEEKER.uid, "That's great news! What should I prepare for?", 3900],
-      ["demo-co-fernwood", "A system design session on ledgers, a React pairing exercise, and a chat with the hiring manager.", 3800],
+      ["sample-co-fernwood", "Hi Maya, we'd love to move you to the onsite loop for the Payments role.", 4000],
+      [SAMPLE_SEEKER.uid, "That's great news! What should I prepare for?", 3900],
+      ["sample-co-fernwood", "A system design session on ledgers, a React pairing exercise, and a chat with the hiring manager.", 3800],
     ] as Array<[string, string, number]>,
   },
   {
     id: "chat-employer-daniel",
-    participants: [DEMO_EMPLOYER.uid, "demo-cand-01"],
+    participants: [SAMPLE_EMPLOYER.uid, "sample-cand-01"],
     opportunityId: "job-nw-senior-fe",
     opportunityTitle: "Senior Frontend Engineer",
     applicationId: "app-emp-0-job-nw-senior-fe",
     messages: [
-      [DEMO_EMPLOYER.uid, "Hi Daniel, thanks for the great conversation yesterday!", 600],
-      ["demo-cand-01", "Thanks for having me — I enjoyed the pairing exercise a lot.", 540],
-      ["demo-cand-01", "Quick question: is the role open to candidates based in Mexico City?", 30],
+      [SAMPLE_EMPLOYER.uid, "Hi Daniel, thanks for the great conversation yesterday!", 600],
+      ["sample-cand-01", "Thanks for having me — I enjoyed the pairing exercise a lot.", 540],
+      ["sample-cand-01", "Quick question: is the role open to candidates based in Mexico City?", 30],
     ] as Array<[string, string, number]>,
   },
   {
     id: "chat-employer-grace",
-    participants: [DEMO_EMPLOYER.uid, "demo-cand-12"],
+    participants: [SAMPLE_EMPLOYER.uid, "sample-cand-12"],
     opportunityId: "job-nw-product-designer",
     opportunityTitle: "Product Designer",
     applicationId: "app-emp-6-job-nw-product-designer",
     messages: [
-      [DEMO_EMPLOYER.uid, "Grace, we're thrilled to officially welcome you to Northwind! 🎉", 7000],
-      ["demo-cand-12", "I'm so excited! Signed and sent back this morning.", 6900],
+      [SAMPLE_EMPLOYER.uid, "Grace, we're thrilled to officially welcome you to Northwind! 🎉", 7000],
+      ["sample-cand-12", "I'm so excited! Signed and sent back this morning.", 6900],
     ] as Array<[string, string, number]>,
   },
 ];
@@ -676,7 +674,7 @@ export const SEEKER_NOTIFICATIONS = [
   { type: "new_message", title: "New message from Northwind Labs", message: "Booked! You'll get a calendar invite shortly.", minutesAgo: 60, read: false, link: "/inbox" },
   { type: "job_match", title: "New match: ML Engineer, Forecasting", message: "Greenleaf Energy posted a role that matches 4 of your skills.", minutesAgo: 600, read: false, link: "/opportunities/job-greenleaf-ml" },
   { type: "application_update", title: "Congratulations! 🎉", message: "Canvas & Code marked your UX/UI Designer application as Hired.", minutesAgo: 2000, read: true, link: "/applied" },
-  { type: "new_follower", title: "Daniel Reyes followed you", message: "Daniel Reyes started following you.", minutesAgo: 3000, read: true, link: "/users/demo-cand-01" },
+  { type: "new_follower", title: "Daniel Reyes followed you", message: "Daniel Reyes started following you.", minutesAgo: 3000, read: true, link: "/users/sample-cand-01" },
   { type: "system", title: "Your profile is 90% complete", message: "Add a cover photo to stand out to recruiters.", minutesAgo: 6000, read: true, link: "/profile" },
 ];
 

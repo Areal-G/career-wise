@@ -42,7 +42,6 @@ import { PremiumGate } from "@/components/premium-gate";
 import { postAiJson } from "@/lib/ai-api-client";
 import type { GenerateQuestionsOutput, EvaluateAnswerOutput } from "@/lib/ai-tool-contracts";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 type ExperienceLevel = "entry" | "mid" | "senior" | "executive";
@@ -94,8 +93,6 @@ export default function InterviewPrepPage() {
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [showTips, setShowTips] = useState(false);
   const [showSampleAnswer, setShowSampleAnswer] = useState(false);
-
-  useDemoAutoRun(!!role.trim(), () => handleGenerateQuestions());
 
   const handleGenerateQuestions = async () => {
     // Check rate limit

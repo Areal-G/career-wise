@@ -55,7 +55,7 @@ service cloud.firestore {
       allow create: if isOwner(userId)
                     && request.resource.data.role in ['employee', 'employer']
                     && request.resource.data.keys().hasAll(['email', 'role'])
-                    && !request.resource.data.keys().hasAny(['plan', 'subscriptionId', 'subscriptionStatus', 'isDemo']);
+                    && !request.resource.data.keys().hasAny(['plan', 'subscriptionId', 'subscriptionStatus']);
 
       // A user can only update their own profile document.
       // Critical fields (uid, email, role) cannot be changed by the user.

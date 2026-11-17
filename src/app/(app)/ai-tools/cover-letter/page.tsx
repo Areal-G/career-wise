@@ -40,7 +40,6 @@ import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useR
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { postAiJson } from "@/lib/ai-api-client";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 type Tone = "professional" | "enthusiastic" | "confident" | "conversational";
@@ -115,8 +114,6 @@ export default function CoverLetterGeneratorPage() {
   const updateField = (field: keyof CoverLetterData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
-
-  useDemoAutoRun(!!(formData.jobTitle && formData.company && formData.jobDescription), () => handleGenerate());
 
   const handleGenerate = async () => {
     // Check rate limit

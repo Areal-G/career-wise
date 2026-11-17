@@ -33,7 +33,6 @@ import { PremiumGate } from "@/components/premium-gate";
 import { postAiJson } from "@/lib/ai-api-client";
 import type { CareerPathOutput } from "@/lib/ai-tool-contracts";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 export default function CareerPathPage() {
@@ -54,8 +53,6 @@ export default function CareerPathPage() {
     setSkills((v) => v || c.skillsText);
     setExperience((v) => (v === "0" && c.experienceYears ? String(c.experienceYears) : v));
   });
-
-  useDemoAutoRun(!!currentRole.trim() && !!targetRole.trim(), () => handleGenerate());
 
   const handleGenerate = async () => {
     if (!currentRole.trim() || !targetRole.trim()) return;

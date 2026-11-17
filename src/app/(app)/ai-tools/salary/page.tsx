@@ -42,7 +42,6 @@ import { PremiumGate } from "@/components/premium-gate";
 import { postAiJson } from "@/lib/ai-api-client";
 import type { SalaryNegotiationOutput } from "@/lib/ai-tool-contracts";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 type NegotiationType = "new-offer" | "raise" | "counter-offer" | "research";
@@ -76,8 +75,6 @@ export default function SalaryNegotiatorPage() {
     if (c.experienceYears) setExperienceYears(c.experienceYears);
     if (c.job) setNegotiationType("new-offer");
   });
-
-  useDemoAutoRun(!!role.trim() && !!location.trim(), () => handleAnalyze());
 
   const handleAnalyze = async () => {
     // Check rate limit

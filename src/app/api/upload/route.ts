@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Local/demo fallback when Cloudinary is not configured: return the image
+    // Local fallback when Cloudinary is not configured: return the image
     // inline as a data URL (raster formats only — SVG could carry script).
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
       if (file.type === "image/svg+xml") {
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({
         url: `data:${file.type};base64,${buffer.toString("base64")}`,
-        message: "File stored inline (demo mode)",
+        message: "File stored inline (cloud storage not configured)",
       });
     }
 

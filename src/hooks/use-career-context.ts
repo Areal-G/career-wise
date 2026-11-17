@@ -5,7 +5,6 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { estimateYears, jobFromDoc, splitSkills, type JobContext } from "@/lib/career";
-import { DEMO_SAMPLE_JOB_ID, isDemoUser } from "@/hooks/use-demo-autorun";
 import type { DocumentData } from "firebase/firestore";
 
 export { estimateYears, jobFromDoc, splitSkills };
@@ -45,15 +44,13 @@ export function useCareerContext(): CareerContext {
   useEffect(() => {
     let cancelled = false;
     if (jobId === undefined) return;
-    // Guest demo: tools open against a sample job so they have something to work on.
-    const id = jobId || (isDemoUser(user?.uid) ? DEMO_SAMPLE_JOB_ID : null);
-    if (!id || !user) {
+    if (!jobId || !user) {
       setJob(null);
       setJobLoading(false);
       return;
     }
     setJobLoading(true);
-    getDoc(doc(db, "opportunities", id))
+    getDoc(doc(db, "opportunities", jobId))
       .then((snap) => {
         if (!cancelled) setJob(snap.exists() ? jobFromDoc(snap.id, snap.data()) : null);
       })

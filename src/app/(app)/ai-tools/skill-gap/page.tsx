@@ -35,7 +35,6 @@ import { useRateLimit, AI_RATE_LIMITS, formatTimeUntilReset } from "@/hooks/useR
 import { postAiJson } from "@/lib/ai-api-client";
 import type { AnalyzeSkillGapOutput } from "@/lib/ai-tool-contracts";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 export default function SkillGapPage() {
@@ -76,8 +75,6 @@ export default function SkillGapPage() {
   const removeSkill = (skill: string) => {
     setSkills(skills.filter(s => s !== skill));
   };
-
-  useDemoAutoRun(!!jobTitle.trim() && !!jobDescription.trim(), () => handleAnalyze());
 
   const handleAnalyze = async () => {
     // Check rate limit

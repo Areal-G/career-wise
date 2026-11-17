@@ -50,9 +50,7 @@ import {
 } from "@/components/resume-builder";
 import { createEmptyCustomSection } from "@/types/resume-types";
 import { saveAiResult } from "@/lib/ai-history";
-import { isDemoUser, useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
-import type { DocumentData } from "firebase/firestore";
 
 export default function ResumeBuilderPage() {
   const { user, userProfile, loading: authLoading } = useAuth();
@@ -76,7 +74,6 @@ export default function ResumeBuilderPage() {
         if (userProfile.skills) {
           newResume.skills.technical = userProfile.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
         }
-        if (isDemoUser(user.uid)) fillDemoResume(newResume, userProfile);
       }
       setResume(newResume);
     }
@@ -93,8 +90,6 @@ export default function ResumeBuilderPage() {
     if (!config.removable) return true; // Mandatory sections always enabled
     return resume.enabledSections.includes(sectionId);
   };
-
-  useDemoAutoRun(!!resume && validateResume(resume).length === 0, () => handleAIGenerate());
 
   const handleAIGenerate = async () => {
     if (!resume) return;
@@ -545,59 +540,5 @@ export default function ResumeBuilderPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-/** Guest demo: turn the seeded profile into a complete resume so the builder has real content. */
-function fillDemoResume(resume: Resume, p: DocumentData) {
-  resume.name = "Demo resume";
-  resume.header.fullName ||= [p.firstName, p.lastName].filter(Boolean).join(" ");
-  resume.header.jobTitle = String(p.headline || "").split(/[·|]/)[0].trim();
-  resume.header.phone = p.contactNumber || "";
-  resume.header.location = p.location || "";
-  resume.summary = p.bio || "";
-  resume.experience = String(p.employmentHistory || "")
-    .split("\n")
-    .map((line) => line.match(/^(.*?)\s+[—–-]\s+(.*?)\s*\((\d{4})[–-](\w+)\)\s*:?\s*(.*)$/))
-    .filter((m): m is RegExpMatchArray => !!m)
-    .map((m) => ({
-      id: crypto.randomUUID(),
-      jobTitle: m[1].trim(),
-      company: m[2].trim(),
-      location: "",
-      startDate: m[3],
-      endDate: /present/i.test(m[4]) ? "" : m[4],
-      current: /present/i.test(m[4]),
-      bullets: m[5]
-        .split(/;\s*|\.\s+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((text) => ({ id: crypto.randomUUID(), text: text[0].toUpperCase() + text.slice(1) })),
-    }));
-  resume.education = String(p.education || "")
-    .split("\n")
-    .map((line) => line.match(/^(.*?),\s*(.*?)\s*\((\d{4})\)/))
-    .filter((m): m is RegExpMatchArray => !!m)
-    .map((m) => {
-      const [degree, ...field] = m[1].split(" ");
-      return {
-        id: crypto.randomUUID(),
-        degree,
-        fieldOfStudy: field.join(" "),
-        institution: m[2],
-        location: "",
-        startDate: "",
-        endDate: m[3],
-      };
-    });
-  resume.projects = (Array.isArray(p.portfolioProjects) ? p.portfolioProjects : []).map(
-    (proj: { title: string; description: string; url?: string }) => ({
-      id: crypto.randomUUID(),
-      name: proj.title,
-      techStack: [],
-      description: proj.description,
-      bullets: [proj.description],
-      liveUrl: proj.url,
-    })
   );
 }

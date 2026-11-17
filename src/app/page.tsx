@@ -5,11 +5,9 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   BellRing,
-  Building2,
   Check,
   FileText,
   Kanban,
-  Loader2,
   MessageSquareText,
   Search,
   ShieldCheck,
@@ -17,15 +15,12 @@ import {
   Target,
   TestTube2,
   Timer,
-  UserRound,
   WifiOff,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useDemoLogin, type DemoRole } from "@/hooks/use-demo-login";
 import { BRAND } from "@/lib/brand";
 import { BrandWordmark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 // Three espresso shades so feature tiles read as a set without being identical.
@@ -38,25 +33,16 @@ const fade = {
   transition: { duration: 0.5 },
 };
 
-function DemoButtons({ size = "lg", className }: { size?: "lg" | "default"; className?: string }) {
-  const { start, pending } = useDemoLogin();
-  const { toast } = useToast();
-  const go = (role: DemoRole) =>
-    start(role).catch((e) => toast({ title: "Demo unavailable", description: e?.message, variant: "destructive" }));
+function GetStartedButtons({ className }: { className?: string }) {
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row", className)}>
-      <Button
-        size={size}
-        className="rounded-full px-6"
-        disabled={pending !== null}
-        onClick={() => go("employee")}
-      >
-        {pending === "employee" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserRound className="mr-2 h-4 w-4" />}
-        Try as a job seeker
+      <Button asChild size="lg" className="rounded-full px-6">
+        <Link href="/signup">
+          Get started <ArrowRight className="ml-2 h-4 w-4" />
+        </Link>
       </Button>
-      <Button size={size} variant="outline" className="rounded-full px-6" disabled={pending !== null} onClick={() => go("employer")}>
-        {pending === "employer" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
-        Try as an employer
+      <Button asChild size="lg" variant="outline" className="rounded-full px-6">
+        <Link href="/login">Sign in</Link>
       </Button>
     </div>
   );
@@ -228,8 +214,8 @@ export default function Landing() {
               <span className="italic text-primary">Find the hire.</span>
             </h1>
             <p className="mt-5 max-w-lg text-lg text-muted-foreground">{BRAND.tagline} Every match comes with the reasons behind it.</p>
-            <DemoButtons className="mt-8" />
-            <p className="mt-3 text-sm text-muted-foreground">No sign-up. Opens a guest account with realistic sample data.</p>
+            <GetStartedButtons className="mt-8" />
+            <p className="mt-3 text-sm text-muted-foreground">Free to start. Sign up as a job seeker or as a hiring team.</p>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 40, rotate: 2 }}
@@ -318,7 +304,7 @@ export default function Landing() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               [ShieldCheck, "Locked-down data", "Firestore security rules stop role escalation, billing tampering and cross-tenant reads. Admin rights are granted server-side only."],
-              [WifiOff, "Runs fully offline", "Firebase emulators in Docker and a deterministic offline AI model, so the demo works without any API keys."],
+              [WifiOff, "Runs fully offline", "Firebase emulators in Docker and a deterministic offline AI model, so it runs locally without any API keys."],
               [Timer, "Shared rate limiting", "AI endpoints are throttled through a Firestore-backed limiter that holds across server instances."],
               [TestTube2, "Typed and tested", "Strict TypeScript at build time and unit tests on the matching, status and scoring logic."],
             ].map(([Icon, title, body]) => {
@@ -346,11 +332,11 @@ export default function Landing() {
       <section className="py-24">
         <motion.div {...fade} className="mx-auto max-w-4xl px-4">
           <div className="relative overflow-hidden rounded-[2.5rem] border bg-card px-6 py-14 text-center sm:px-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">See it with real-looking data.</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ready when you are.</h2>
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-              Jump in as Maya, a frontend engineer mid-search, or as the hiring team at Northwind Labs.
+              Create a free account to run your search in one place, or post a role and review ranked applicants.
             </p>
-            <DemoButtons className="mt-8 justify-center" />
+            <GetStartedButtons className="mt-8 justify-center" />
           </div>
         </motion.div>
       </section>

@@ -37,7 +37,6 @@ import { PremiumGate } from "@/components/premium-gate";
 import { postAiJson } from "@/lib/ai-api-client";
 import type { OptimizeLinkedInOutput } from "@/lib/ai-tool-contracts";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 export default function LinkedInOptimizerPage() {
@@ -77,8 +76,6 @@ export default function LinkedInOptimizerPage() {
     }
     setSkillInput("");
   };
-
-  useDemoAutoRun(!!role.trim() && !!industry.trim() && skills.length > 0, () => handleOptimize());
 
   const handleOptimize = async () => {
     // Check rate limit

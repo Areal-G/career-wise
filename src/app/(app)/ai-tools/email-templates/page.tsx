@@ -44,7 +44,6 @@ import { PremiumGate } from "@/components/premium-gate";
 import { postAiJson } from "@/lib/ai-api-client";
 import type { GenerateEmailOutput, TemplateType } from "@/lib/ai-tool-contracts";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { getErrorMessage } from "@/lib/utils";
 
 const TEMPLATE_TYPES: { value: TemplateType; label: string; icon: React.ElementType; description: string }[] = [
@@ -85,8 +84,6 @@ export default function EmailTemplatesPage() {
     setCompanyName((v) => v || c.job?.company || "");
     setJobTitle((v) => v || c.job?.title || "");
   });
-
-  useDemoAutoRun(!!companyName.trim(), () => handleGenerate());
 
   const handleGenerate = async () => {
     // Check rate limit

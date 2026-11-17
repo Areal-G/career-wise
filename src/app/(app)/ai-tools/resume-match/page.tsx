@@ -54,7 +54,6 @@ import {
   Copy,
 } from "lucide-react";
 import { useCareerContext, usePrefill } from "@/hooks/use-career-context";
-import { isDemoUser, useDemoAutoRun } from "@/hooks/use-demo-autorun";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -171,27 +170,6 @@ export default function ResumeMatchPage() {
     if (c.job) {
       setJobTitle((v) => v || c.job!.title);
       setJobDescriptionText((v) => v || c.job!.description);
-    }
-    // Guest demo: build a plain-text resume from the seeded profile so the analyzer has input.
-    if (isDemoUser(user?.uid) && c.name) {
-      const text = [
-        c.name,
-        c.title,
-        [c.email, c.location].filter(Boolean).join(" · "),
-        "",
-        "SKILLS",
-        c.skillsText,
-        "",
-        "EXPERIENCE",
-        c.experienceText,
-        "",
-        "EDUCATION",
-        c.education,
-        "",
-        "GOALS",
-        c.careerGoals,
-      ].join("\n");
-      setResumeFile((f) => f || new File([text], "demo-resume.txt", { type: "text/plain" }));
     }
   });
   const [savedDescriptions, setSavedDescriptions] = useState<SavedJobDescription[]>([]);
@@ -474,8 +452,6 @@ export default function ResumeMatchPage() {
       });
     }
   };
-
-  useDemoAutoRun(!!resumeFile && !!jobDescriptionText.trim(), () => handleAnalyze());
 
   const handleAnalyze = async () => {
     if (!rateLimit.canProceed) {

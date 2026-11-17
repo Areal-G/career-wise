@@ -32,7 +32,7 @@ const db =
     : (() => {
         try {
           // The local emulator is reset/reseeded often, so skip the
-          // persistent IndexedDB cache there to avoid stale demo data.
+          // persistent IndexedDB cache there to avoid stale data.
           if (emulatorHost) return getFirestore(app);
           return initializeFirestore(app, {
             localCache: persistentLocalCache({

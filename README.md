@@ -12,7 +12,7 @@ Job seekers get a prep pack for every role. Employers get applicants ranked by r
 ![Firebase](https://img.shields.io/badge/Firebase-11-ffca28?logo=firebase&logoColor=black)
 ![Genkit](https://img.shields.io/badge/Genkit-Gemini_2.5_Flash-4285f4?logo=googlegemini&logoColor=white)
 ![Tests](https://img.shields.io/badge/Vitest-13_passing-6e9f18?logo=vitest&logoColor=white)
-![Demo](https://img.shields.io/badge/demo-two_roles-5a3a24)
+[![Live demo](https://img.shields.io/badge/live_demo-career--wise.arealjagema.com-5a3a24)](https://career-wise.arealjagema.com)
 
 [Features](#features) · [Design](#design) · [Screenshots](#screenshots) · [Tech stack](#tech-stack) · [Getting started](#getting-started)
 
@@ -29,14 +29,18 @@ Career Wise is a two-sided career platform built with Next.js 15, Firebase and G
 
 Every AI feature is a Genkit flow running on Gemini 2.5 Flash. Without an API key the app switches to an offline demo model that returns realistic, schema-valid answers, so the whole product runs locally with no paid services.
 
-## Try the demo
+## Live demo
 
-Run it locally (see [Getting started](#getting-started)) and click **Try as a job seeker** or **Try as an employer** on the landing page (or **Try demo as …** on `/login`). A guest account is created and seeded on the spot:
+A portfolio build with sample data runs at [career-wise.arealjagema.com](https://career-wise.arealjagema.com).
+
+## Sample data
+
+`npm run seed` fills the emulator (or a real project) with two accounts to sign in with:
 
 - **Job seeker: Maya.** 16 tracked applications (3 interviewing, 3 offers), saved jobs, follow-up reminders and a profile ready for matching.
 - **Employer: Northwind Labs.** 4 open roles, ranked candidates, applicants at every stage and company updates.
 
-Demo sign-in turns on automatically with the Firebase emulator, or explicitly with `DEMO_MODE=true`.
+See [Seed sample data](#4-seed-sample-data) for the logins.
 
 ## Features
 
@@ -125,7 +129,7 @@ Career Wise uses a warm "espresso" palette instead of the usual SaaS blue: cream
 
 <table>
   <tr>
-    <td width="50%"><img src="readme/landing.png" alt="Landing page"><br><sub><b>Landing page</b> with one-click demos for both roles</sub></td>
+    <td width="50%"><img src="readme/landing.png" alt="Landing page"><br><sub><b>Landing page</b> for both roles</sub></td>
     <td width="50%"><img src="readme/landing-dark.png" alt="Landing page in dark mode"><br><sub><b>Landing page</b> (dark)</sub></td>
   </tr>
   <tr>
@@ -146,7 +150,7 @@ Career Wise uses a warm "espresso" palette instead of the usual SaaS blue: cream
 
 | Layer | Technology | Why |
 |---|---|---|
-| Framework | Next.js 15.5 (App Router, Route Handlers, server actions, Turbopack dev) | Pages, AI endpoints and demo seeding in one deployable |
+| Framework | Next.js 15.5 (App Router, Route Handlers, server actions, Turbopack dev) | Pages, AI endpoints and server actions in one deployable |
 | UI | React 18.3, Tailwind CSS 3.4, shadcn/ui on Radix, Framer Motion, Recharts, next-themes | Accessible primitives on top of the token system |
 | Language | TypeScript 5 | Build fails on type errors (`ignoreBuildErrors` is off) |
 | Data and auth | Firebase Auth, Cloud Firestore, Cloud Storage (client 11, firebase-admin 13) | Realtime data with security rules, no custom backend to run |
@@ -176,7 +180,7 @@ flowchart LR
 - **Sessions.** The Firebase ID token is mirrored into a session cookie and refreshed with `onIdTokenChanged`; `middleware.ts` checks it before app routes render.
 - **AI behind one boundary.** Each tool is a Genkit flow with Zod input and output schemas, called only from `/api/ai/*` handlers that verify the session and apply a shared rate limit.
 - **One matching function.** `lib/career.ts` computes skill overlap; the same code powers the seeker's match score and the employer's candidate ranking, so both sides see the same number.
-- **Demo seeding** (`lib/demo`) is a server action that creates the guest account and writes a versioned, idempotent data set.
+- **Sample data** (`scripts/seed.ts`) is an Admin SDK script that creates the two sign-in accounts and writes a fixed data set; re-running it overwrites only those documents.
 
 ## Engineering highlights
 
@@ -261,23 +265,10 @@ The emulator UI is then at `http://localhost:4000`.
 
 ### 3. Configure
 
-Create `.env.local`:
+Copy the example env file. Its defaults point the app at the emulators, and it lists every variable the code reads:
 
 ```bash
-NEXT_PUBLIC_FIREBASE_API_KEY=demo-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-app.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-app
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=demo-app.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=0
-NEXT_PUBLIC_FIREBASE_APP_ID=demo
-NEXT_PUBLIC_FIREBASE_EMULATOR_HOST=127.0.0.1
-NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT=9099
-NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT=8080
-NEXT_PUBLIC_STORAGE_EMULATOR_PORT=9199
-FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
-FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199
-NEXT_PUBLIC_APP_URL=http://localhost:3507
+cp .env.example .env.local
 ```
 
 <details>
@@ -291,21 +282,33 @@ NEXT_PUBLIC_APP_URL=http://localhost:3507
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Production | Service account for `firebase-admin` |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public URL, used in emails and checkout redirects |
 | `GOOGLE_GENAI_API_KEY` (or `GEMINI_API_KEY`, `GOOGLE_API_KEY`) | No | Use Gemini; without it the offline demo model answers |
-| `DEMO_MODE` | No | `true` shows the demo sign-in buttons outside the emulator setup; `false` hides them |
 | `ADMIN_EMAILS` | No | Comma-separated emails granted the admin role |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | No | Welcome and application-status emails |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_{STARTER,PRO,PREMIUM,BUSINESS}_{MONTHLY,YEARLY}_PRICE_ID` | No | Paid plans and checkout |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | No | Image and file uploads |
+| `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSWORD` | Seeding | Login for the seeded job seeker (see below) |
 
 </details>
 
-### 4. Run
+### 4. Seed sample data
+
+With the emulators running:
+
+```bash
+npm run seed
+```
+
+Sign in as the job seeker with `maya@example.com` or as the employer with `talent@example.com`; both use the password `sample-password`. Set `SEED_OWNER_EMAIL` and `SEED_OWNER_PASSWORD` to choose the job seeker's login and the shared password.
+
+With service-account credentials (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`) and no emulator variables, the script seeds that real project instead and requires `SEED_OWNER_PASSWORD`.
+
+### 5. Run
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3507` and pick a demo.
+Open `http://localhost:3507` and sign in with one of the seeded accounts.
 
 <details>
 <summary><b>Scripts</b></summary>
@@ -317,6 +320,7 @@ Open `http://localhost:3507` and pick a demo.
 | `npm run lint` | ESLint (Next.js config) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest suite |
+| `npm run seed` | Write the sample data set to the emulator or a Firebase project |
 | `npm run genkit:dev` / `npm run genkit:watch` | Genkit developer UI for inspecting and running AI flows |
 
 </details>
@@ -340,8 +344,9 @@ src/
 │   └── flows/             # 19 Genkit flows
 ├── components/            # app shell, today/ home screens, resume-builder, chat, ui/
 ├── lib/                   # career matching, application statuses, AI history,
-│                          # rate limiting, session, Stripe, email, demo/ seeding
+│                          # rate limiting, session, Stripe, email
 └── middleware.ts          # session cookie check
+scripts/                   # seed.ts + seed-data.ts: sample data (npm run seed)
 emulator/                  # Dockerfile + config for the Firebase emulator suite
 firestore.rules            # security rules
 firestore.indexes.json
@@ -369,7 +374,7 @@ npm test
 
 ## Deployment
 
-The repo includes `apphosting.yaml` for **Firebase App Hosting**: connect the repository, set the environment variables above as secrets (Firebase config, service account, `NEXT_PUBLIC_APP_URL` and any optional keys), and deploy `firestore.rules` and `firestore.indexes.json` with the Firebase CLI. It also runs on any Node host with `npm run build && npm start`. Point the Stripe webhook at `/api/webhooks/stripe` when billing is enabled, and set `DEMO_MODE=false` unless you want public demo sign-in.
+The repo includes `apphosting.yaml` for **Firebase App Hosting**: connect the repository, set the environment variables above as secrets (Firebase config, service account, `NEXT_PUBLIC_APP_URL` and any optional keys), and deploy `firestore.rules` and `firestore.indexes.json` with the Firebase CLI. It also runs on any Node host with `npm run build && npm start`. Point the Stripe webhook at `/api/webhooks/stripe` when billing is enabled.
 
 ## Roadmap
 
@@ -377,4 +382,4 @@ The repo includes `apphosting.yaml` for **Firebase App Hosting**: connect the re
 - Saved searches with email alerts for new matching roles.
 - Shared scorecards so several interviewers can rate a candidate.
 - Firestore rules unit tests in CI against the emulator.
-- End-to-end tests for the demo, prep pack and apply flows.
+- End-to-end tests for the sign-up, prep pack and apply flows.

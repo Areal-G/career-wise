@@ -16,13 +16,11 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { handleFirstLogin } from "@/lib/automated-email-service";
-import { useDemoLogin } from "@/hooks/use-demo-login";
 import { AnimatedCharacters } from "@/components/ui/animated-characters";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { toPublicProfile } from "@/lib/public-profile";
@@ -45,18 +43,6 @@ export default function LoginPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const demo = useDemoLogin();
-  const demoLoading = demo.pending;
-  const handleDemoLogin = async (role: "employee" | "employer") => {
-    setError("");
-    try {
-      await demo.start(role);
-    } catch (err) {
-      setError(getErrorMessage(err) || "Could not start the demo.");
-      toast({ title: "Demo unavailable", description: getErrorMessage(err), variant: "destructive" });
-    }
-  };
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -303,33 +289,6 @@ export default function LoginPage() {
               disabled={isLoading}
             />
           </form>
-
-          {/* Guest demo */}
-          <div className="mt-6 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
-            <p className="text-sm font-medium text-foreground">Just looking around?</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Explore with a sample account full of jobs, applications and messages. No sign-up needed.
-            </p>
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Button
-                type="button"
-                className="h-10"
-                disabled={demoLoading !== null}
-                onClick={() => handleDemoLogin("employee")}
-              >
-                {demoLoading === "employee" ? "Preparing demo..." : "Try demo as job seeker"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10"
-                disabled={demoLoading !== null}
-                onClick={() => handleDemoLogin("employer")}
-              >
-                {demoLoading === "employer" ? "Preparing demo..." : "Try demo as employer"}
-              </Button>
-            </div>
-          </div>
 
           {/* Social Login */}
           <div className="mt-6">
