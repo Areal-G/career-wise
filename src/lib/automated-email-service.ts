@@ -1,6 +1,5 @@
 "use server";
 
-import { Resend } from "resend";
 import {
   doc,
   getDoc,
@@ -13,15 +12,6 @@ import {
   limit,
 } from "firebase/firestore";
 import { db } from "./firebase";
-
-// Lazy initialization to avoid client-side errors
-let resend: Resend | null = null;
-function getResend(): Resend {
-  if (!resend) {
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resend;
-}
 
 interface UserProfile {
   uid: string;
@@ -64,29 +54,13 @@ interface ApplicationStatus {
   applicantEmail: string;
 }
 
+// Portfolio demo build: email is off, so nothing ever reaches Resend.
 async function sendEmailWithResend(
-  to: string,
-  subject: string,
-  html: string
+  _to: string,
+  _subject: string,
+  _html: string
 ): Promise<{ success: boolean; messageId?: string }> {
-  if (!process.env.RESEND_API_KEY) {
-    console.error("[sendEmailWithResend] Missing RESEND_API_KEY in .env file");
-    return { success: false };
-  }
-
-  const { data, error } = await getResend().emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
-    to: [to],
-    subject: subject,
-    html: html,
-  });
-
-  if (error) {
-    console.error("[sendEmailWithResend] Resend error:", error);
-    return { success: false };
-  }
-
-  return { success: true, messageId: data?.id };
+  return { success: false };
 }
 
 // Track first login and send welcome back email

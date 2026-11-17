@@ -1,59 +1,17 @@
-import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getAuth, Auth } from "firebase-admin/auth";
+// Portfolio demo build: firebase-admin is replaced by in-memory stand-ins
+// (src/lib/demo) seeded with the same sample data as the browser.
+import { Firestore } from "@/lib/demo/admin-firestore";
+import { demoAccountForToken } from "@/lib/demo/session";
+import { demoStore } from "@/lib/demo/db";
 
-// Initialize Firebase Admin SDK only when credentials are available
-let adminDb: Firestore | null = null;
-let adminAuth: Auth | null = null;
-let app: App | null = null;
+const adminDb = new Firestore(demoStore);
 
-function initializeFirebaseAdmin() {
-  // Check if already initialized
-  if (getApps().length > 0) {
-    app = getApps()[0];
-    adminDb = getFirestore(app);
-    adminAuth = getAuth(app);
-    return;
-  }
-
-  // Local emulator suite: no service account needed. The admin SDK reads
-  // FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST from the env.
-  if (process.env.FIRESTORE_EMULATOR_HOST && process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    app = initializeApp({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "demo-app",
-    });
-    adminDb = getFirestore(app);
-    adminAuth = getAuth(app);
-    return;
-  }
-
-  // Check if credentials are available
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  if (!projectId || !clientEmail || !privateKey) {
-    console.warn("Firebase Admin credentials not configured. Some features may not work.");
-    return;
-  }
-
-  try {
-    app = initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey: privateKey.replace(/\\n/g, "\n"),
-      }),
-    });
-    adminDb = getFirestore(app);
-    adminAuth = getAuth(app);
-  } catch (error) {
-    console.error("Failed to initialize Firebase Admin:", error);
-  }
-}
-
-// Initialize on module load
-initializeFirebaseAdmin();
+const adminAuth = {
+  async verifyIdToken(token: string) {
+    const account = demoAccountForToken(token);
+    if (!account) throw new Error("Invalid demo session token");
+    return { uid: account.uid, email: account.email, email_verified: true };
+  },
+};
 
 export { adminDb, adminAuth };
-

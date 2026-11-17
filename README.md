@@ -23,6 +23,10 @@ Job seekers get a prep pack for every role. Employers get applicants ranked by r
   <img alt="Career Wise prep pack on desktop with the Today page on mobile" src="readme/hero-light.png">
 </picture>
 
+> **This is the `demo` branch: the portfolio build behind [career-wise.arealjagema.com](https://career-wise.arealjagema.com).**
+> Firebase (Auth, Firestore, Storage, Admin SDK) is swapped for in-memory stand-ins in `src/lib/demo`, wired up through module aliases in `tsconfig.json` and `vitest.config.ts`. Every browser tab and server instance holds its own copy of the sample data, seeded deterministically; changes stay in memory and reset on reload. AI runs on the offline model, and payments, email and Google sign-in are switched off, so it needs no API keys or environment variables (`netlify.toml` builds it on Netlify). Use **Try as a job seeker** or **Try as an employer** to look around; sign-up is disabled.
+> The full app with Firebase lives on the `main` branch.
+
 ## Overview
 
 Career Wise is a two-sided career platform built with Next.js 15, Firebase and Genkit. Job seekers browse roles, see exactly why they match, generate a tailored cover letter, likely interview questions and a skill plan in one click, and track every application on a board that tells them when to follow up. Employers post roles, see candidates ranked by how well their skills cover each posting, and move applicants through a pipeline.

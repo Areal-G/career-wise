@@ -1,5 +1,5 @@
-import { Timestamp } from "firebase-admin/firestore";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { Firestore, type DocumentReference } from "./admin-firestore";
+import { Timestamp, type DocumentData, type MemoryStore, type Write } from "./store";
 import { toPublicProfile } from "@/lib/public-profile";
 import {
   CANDIDATES,
@@ -20,9 +20,6 @@ import {
   jobDoc,
 } from "./seed-data";
 
-/** Bump to force a reseed of existing environments. */
-const SEED_VERSION = 6;
-
 const PALETTE = ["#6366f1", "#0ea5e9", "#14b8a6", "#f59e0b", "#ec4899", "#8b5cf6", "#ef4444", "#10b981"];
 
 function avatar(name: string, color?: string): string {
@@ -37,35 +34,34 @@ function avatar(name: string, color?: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-const ago = (minutes: number) => Timestamp.fromMillis(Date.now() - minutes * 60_000);
+const HOUR_MS = 60 * 60_000;
+
+/**
+ * All sample timestamps are relative to the start of the current UTC hour, so
+ * every server instance and browser tab seeded within the same hour holds
+ * identical data.
+ */
+export function demoAnchor(now = Date.now()) {
+  return Math.floor(now / HOUR_MS) * HOUR_MS;
+}
 
 function demoEmail(uid: string) {
   return `${uid.replace(/^demo-/, "")}@example.com`;
 }
 
-async function ensureAuthUser(uid: string, email: string, displayName: string) {
-  const auth = adminAuth!;
-  try {
-    await auth.getUser(uid);
-    await auth.updateUser(uid, { email, displayName, password: DEMO_PASSWORD, emailVerified: true });
-  } catch {
-    await auth.createUser({ uid, email, displayName, password: DEMO_PASSWORD, emailVerified: true });
-  }
-}
-
-export function isDemoAvailable() {
-  return Boolean(adminAuth && adminDb);
-}
-
-/** Seeds the full demo dataset if it is missing or outdated. Idempotent. */
-export async function ensureDemoData(force = false) {
-  if (!adminAuth || !adminDb) throw new Error("Demo mode needs the Firebase Admin SDK or emulator.");
-  const db = adminDb;
-  const metaRef = db.collection("_demoMeta").doc("seed");
-  const meta = await metaRef.get();
-  if (!force && meta.exists && meta.data()?.version === SEED_VERSION) return;
-
-  const writer = db.bulkWriter();
+/** Writes the full demo dataset into `store` in one commit. Same anchor, same data. */
+export function seedDemoData(store: MemoryStore, anchor: number) {
+  const ago = (minutes: number) => Timestamp.fromMillis(anchor - minutes * 60_000);
+  const db = new Firestore(store);
+  const writes: Write[] = [];
+  const writer = {
+    set: (ref: DocumentReference, data: DocumentData) => void writes.push({ type: "set", path: ref.path, data }),
+  };
+  // Public profiles carry an "updated" time; pin it to the anchor like everything else.
+  const publicProfile = (data: Parameters<typeof toPublicProfile>[0]) => ({
+    ...toPublicProfile(data),
+    updatedAt: new Date(anchor).toISOString(),
+  });
 
   // ---------- People ----------
   const seekerName = `${DEMO_SEEKER.firstName} ${DEMO_SEEKER.lastName}`;
@@ -75,9 +71,6 @@ export async function ensureDemoData(force = false) {
     [DEMO_SEEKER.uid]: { name: seekerName, photo: seekerPhoto, role: "employee", title: DEMO_SEEKER.headline },
     [DEMO_EMPLOYER.uid]: { name: DEMO_EMPLOYER.companyName, photo: employerPhoto, role: "employer", title: DEMO_EMPLOYER.industry },
   };
-
-  await ensureAuthUser(DEMO_SEEKER.uid, DEMO_SEEKER.email, seekerName);
-  await ensureAuthUser(DEMO_EMPLOYER.uid, DEMO_EMPLOYER.email, DEMO_EMPLOYER.companyName);
 
   const followersOfSeeker = ["demo-cand-01", "demo-cand-04", "demo-cand-10", DEMO_EMPLOYER.uid];
   const seekerDoc = {
@@ -92,7 +85,7 @@ export async function ensureDemoData(force = false) {
     createdAt: ago(60 * 24 * 40),
   };
   writer.set(db.collection("users").doc(DEMO_SEEKER.uid), seekerDoc);
-  writer.set(db.collection("publicProfiles").doc(DEMO_SEEKER.uid), toPublicProfile(seekerDoc));
+  writer.set(db.collection("publicProfiles").doc(DEMO_SEEKER.uid), publicProfile(seekerDoc));
 
   const employerDoc = {
     ...DEMO_EMPLOYER,
@@ -107,7 +100,7 @@ export async function ensureDemoData(force = false) {
     createdAt: ago(60 * 24 * 300),
   };
   writer.set(db.collection("users").doc(DEMO_EMPLOYER.uid), employerDoc);
-  writer.set(db.collection("publicProfiles").doc(DEMO_EMPLOYER.uid), toPublicProfile(employerDoc));
+  writer.set(db.collection("publicProfiles").doc(DEMO_EMPLOYER.uid), publicProfile(employerDoc));
 
   for (const c of COMPANIES) {
     const photo = avatar(c.companyName, c.color);
@@ -134,7 +127,7 @@ export async function ensureDemoData(force = false) {
       following: [],
     };
     writer.set(db.collection("users").doc(c.uid), docData);
-    writer.set(db.collection("publicProfiles").doc(c.uid), toPublicProfile(docData));
+    writer.set(db.collection("publicProfiles").doc(c.uid), publicProfile(docData));
   }
 
   for (const c of CANDIDATES) {
@@ -154,7 +147,7 @@ export async function ensureDemoData(force = false) {
       following: c.uid === "demo-cand-01" ? [DEMO_SEEKER.uid] : [],
     };
     writer.set(db.collection("users").doc(c.uid), docData);
-    writer.set(db.collection("publicProfiles").doc(c.uid), toPublicProfile(docData));
+    writer.set(db.collection("publicProfiles").doc(c.uid), publicProfile(docData));
   }
 
   // ---------- Jobs ----------
@@ -306,8 +299,7 @@ export async function ensureDemoData(force = false) {
   notify(DEMO_SEEKER.uid, SEEKER_NOTIFICATIONS);
   notify(DEMO_EMPLOYER.uid, EMPLOYER_NOTIFICATIONS);
 
-  writer.set(metaRef, { version: SEED_VERSION, seededAt: Timestamp.now() });
-  await writer.close();
+  store.commit(writes);
 }
 
 export function demoCredentials(role: "employee" | "employer") {

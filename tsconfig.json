@@ -19,7 +19,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "firebase/auth": ["./src/lib/demo/auth.ts"],
+      "firebase/firestore": ["./src/lib/demo/firestore.ts"],
+      "firebase/storage": ["./src/lib/demo/storage.ts"],
+      "firebase-admin/firestore": ["./src/lib/demo/admin-firestore.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

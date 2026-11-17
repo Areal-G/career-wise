@@ -1,8 +1,6 @@
 "use server";
 
 import { Resend } from "resend";
-import { adminDb } from "@/lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { requireServerAuthenticatedUser, requireServerRole } from "@/lib/server-auth";
 
 // Lazy initialization to avoid client-side errors
@@ -27,69 +25,11 @@ export interface EmailDeliveryStatus {
 }
 
 export async function sendEmailDirect(
-  input: EmailInput
+  _input: EmailInput
 ): Promise<{ success: boolean; messageId?: string }> {
   await requireServerAuthenticatedUser();
-
-  const { to, subject, body } = input;
-
-  // Rate Limiting Logic - Transactional Emails (3000/month)
-  const monthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
-  
-  if (!adminDb) {
-    console.warn("adminDb not initialized, skipping rate limit check");
-    // continue without rate limit tracking for local testing if admin sdk fails
-  } else {
-    const countRef = adminDb.collection("monthly_email_counts").doc(monthKey);
-    const MONTHLY_TRANSACTIONAL_LIMIT = 3000;
-
-    try {
-      const canSend = await adminDb.runTransaction(async (transaction) => {
-        const countDoc = await transaction.get(countRef);
-        if (!countDoc.exists) {
-          transaction.set(countRef, { transactional: 1, broadcasts: 0 });
-          return true;
-        }
-        const currentCount = countDoc.data()?.transactional || 0;
-        if (currentCount >= MONTHLY_TRANSACTIONAL_LIMIT) {
-          return false;
-        }
-        transaction.update(countRef, { transactional: FieldValue.increment(1) });
-        return true;
-      });
-
-      if (!canSend) {
-        console.warn(
-          `Monthly transactional email limit of ${MONTHLY_TRANSACTIONAL_LIMIT} reached. Email to ${to} not sent.`
-        );
-        return { success: false, messageId: undefined };
-      }
-    } catch (e) {
-      console.error("Email rate limit transaction failed: ", e);
-      return { success: false };
-    }
-  }
-
-  if (!process.env.RESEND_API_KEY) {
-    console.error("Missing RESEND_API_KEY in .env file");
-    return { success: false };
-  }
-
-
-  const resendClient = await getResend();
-  const { data, error } = await resendClient.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "Career Wise <onboarding@resend.dev>",
-    to: [to],
-    subject: subject,
-    html: body,
-  });
-
-  if (error) {
-    console.error("[sendEmailDirect] Resend error:", error);
-    return { success: false };
-  }
-
-  return { success: true, messageId: data?.id };
+  // Portfolio demo build: email is off, so nothing ever reaches Resend.
+  return { success: false };
 }
 
 export async function sendWelcomeEmailDirect(

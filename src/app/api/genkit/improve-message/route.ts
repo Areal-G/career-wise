@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { requireAuth } from "@/lib/api-auth";
 import { enforceAiRateLimit, isAiRateLimitError } from "@/lib/ai-rate-limit";
-
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || "");
 
 export async function POST(request: NextRequest) {
   let message = "";
@@ -22,30 +19,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     message = body.message || "";
-    const prompt = body.prompt;
 
     if (!message) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    if (!process.env.GOOGLE_GENAI_API_KEY) {
-      // If no API key, just return the original message
-      return NextResponse.json({ improved: message });
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    const fullPrompt = `${prompt || "Improve this message:"} 
-    
-"${message}"
-
-Respond with ONLY the improved message, no explanations or quotation marks.`;
-
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const improved = response.text().trim();
-
-    return NextResponse.json({ improved });
+    // Portfolio demo build: AI is offline, so the message comes back unchanged
+    // (the same graceful fallback the app uses without an API key).
+    return NextResponse.json({ improved: message });
   } catch (error) {
     if (isAiRateLimitError(error)) {
       return NextResponse.json(

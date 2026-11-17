@@ -1,0 +1,8 @@
+# Portfolio demo build: in-memory sample data, no Firebase or other services,
+# so no environment variables are needed.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"

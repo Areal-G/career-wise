@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { startDemoSession } from "@/lib/demo/actions";
+import { demoCredentials } from "@/lib/demo/seed";
 
 export type DemoRole = "employee" | "employer";
 
@@ -18,9 +18,8 @@ export function useDemoLogin() {
     setPending(role);
     setError("");
     try {
-      const result = await startDemoSession(role);
-      if (!result.ok) throw new Error(result.error);
-      await signInWithEmailAndPassword(auth, result.email, result.password);
+      const { email, password } = demoCredentials(role);
+      await signInWithEmailAndPassword(auth, email, password);
       router.push(role === "employer" ? "/employer/dashboard" : "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start the demo.");

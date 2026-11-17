@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
+import { demoAccountForToken } from "@/lib/demo/session";
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -52,46 +52,9 @@ function isPublicRoute(pathname: string): boolean {
   return false;
 }
 
-const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const firebaseJwks = createRemoteJWKSet(
-  new URL(
-    "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
-  ),
-);
-
+// Portfolio demo build: sessions name one of the in-memory demo accounts.
 async function verifySessionToken(token: string): Promise<boolean> {
-  if (!firebaseProjectId) {
-    return false;
-  }
-
-  // The Auth emulator issues unsigned tokens, so in local emulator mode we
-  // only check the claims. Never set the emulator env vars in production.
-  if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    try {
-      const payload = decodeJwt(token);
-      const notExpired = typeof payload.exp === "number" && payload.exp * 1000 > Date.now();
-      return (
-        payload.aud === firebaseProjectId &&
-        payload.iss === `https://securetoken.google.com/${firebaseProjectId}` &&
-        notExpired &&
-        typeof payload.sub === "string" &&
-        payload.sub.length > 0
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, firebaseJwks, {
-      issuer: `https://securetoken.google.com/${firebaseProjectId}`,
-      audience: firebaseProjectId,
-    });
-
-    return typeof payload.sub === "string" && payload.sub.length > 0;
-  } catch {
-    return false;
-  }
+  return demoAccountForToken(token) !== null;
 }
 
 export async function middleware(request: NextRequest) {
